@@ -11,7 +11,28 @@ import { getRandomLoadingMessage, getRandomEmptyMessage, getRandomErrorMessage }
 import thumb1 from "@/assets/thumb-1.jpg";
 import thumb2 from "@/assets/thumb-2.jpg";
 
-const Index = () => {
+const LoadingState = () => {
+  const [message, setMessage] = useState(getRandomLoadingMessage);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessage(getRandomLoadingMessage());
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
+      <p className="text-foreground font-medium mb-1">Hang tight, anon...</p>
+      <p className="text-muted-foreground text-sm text-center max-w-md transition-all duration-500">
+        {message}
+      </p>
+    </div>
+  );
+};
+
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
 
