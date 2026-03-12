@@ -1,9 +1,9 @@
-import { Zap, Eye, Clock } from "lucide-react";
+import { Zap, Clock } from "lucide-react";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
-import { useVideoThumbnail } from "@/hooks/useVideoThumbnail";
 import { timeAgo } from "@/lib/nostr";
 import type { ParsedVideo } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 // Fallback thumbnails for videos without thumbnails
 import thumb1 from "@/assets/thumb-1.jpg";
@@ -24,15 +24,19 @@ function getFallbackThumb(id: string): string {
 
 interface VideoCardProps {
   video: ParsedVideo;
+  /** Pre-fetched profile to avoid individual requests */
+  cachedProfile?: { displayName?: string; name?: string; picture?: string } | null;
 }
 
-const VideoCard = ({ video }: VideoCardProps) => {
-  const { profile } = useNostrProfile(video.pubkey);
+const VideoCard = ({ video, cachedProfile }: VideoCardProps) => {
+  const { profile: fetchedProfile } = useNostrProfile(cachedProfile !== undefined ? null : video.pubkey);
+  const profile = cachedProfile || fetchedProfile;
   const navigate = useNavigate();
+  const [imgLoaded, setImgLoaded] = useState(false);
+
   const displayName = profile?.displayName || profile?.name || video.pubkey.slice(0, 12) + "...";
   const avatar = profile?.picture;
-  const generatedThumb = useVideoThumbnail(video.videoUrl, video.thumbnail || undefined);
-  const thumbnail = generatedThumb || getFallbackThumb(video.id);
+  const thumbnail = video.thumbnail || getFallbackThumb(video.id);
 
   return (
     <div
@@ -41,13 +45,17 @@ const VideoCard = ({ video }: VideoCardProps) => {
     >
       {/* Thumbnail */}
       <div className="relative aspect-video rounded-xl overflow-hidden bg-secondary mb-3">
+        {!imgLoaded && <div className="absolute inset-0 bg-secondary animate-pulse" />}
         <img
           src={thumbnail}
           alt={video.title}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
           loading="lazy"
+          decoding="async"
+          onLoad={() => setImgLoaded(true)}
           onError={(e) => {
             (e.target as HTMLImageElement).src = getFallbackThumb(video.id);
+            setImgLoaded(true);
           }}
         />
         {/* Duration badge */}
@@ -68,12 +76,14 @@ const VideoCard = ({ video }: VideoCardProps) => {
             src={avatar}
             alt={displayName}
             className="w-9 h-9 shrink-0 rounded-full object-cover mt-0.5"
+            loading="lazy"
+            decoding="async"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = "none";
             }}
           />
         ) : (
-          <div className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-primary/80 to-zap flex items-center justify-center text-xs font-bold text-primary-foreground mt-0.5">
+          <div className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-primary/80 to-accent flex items-center justify-center text-xs font-bold text-primary-foreground mt-0.5">
             {displayName[0]?.toUpperCase() || "?"}
           </div>
         )}
@@ -92,7 +102,7 @@ const VideoCard = ({ video }: VideoCardProps) => {
           </p>
           <div className="flex items-center gap-3 mt-1">
             {video.zapCount > 0 && (
-              <span className="flex items-center gap-1 text-xs text-zap font-medium">
+              <span className="flex items-center gap-1 text-xs text-primary font-medium">
                 <Zap className="w-3 h-3" fill="currentColor" />
                 {video.zapCount.toLocaleString()} sats
               </span>
