@@ -366,7 +366,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
               {/* Video grid — 1 col mobile, 2 col sm, 3 col lg, 4 col xl */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 md:gap-x-4 gap-y-5 md:gap-y-8">
                 {longForm.map((video) => (
-                  <VideoCard key={video.id} video={video} />
+                  <VideoCard key={video.id} video={video} cachedProfile={profiles.get(video.pubkey) || null} />
                 ))}
               </div>
 
