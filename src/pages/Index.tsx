@@ -171,10 +171,7 @@ const Index = () => {
 
           {!loading && !error && videos.length > 0 && (
             <>
-              {/* Shorts shelf */}
-              <ShortsShelf shorts={shorts} />
-
-              {/* Long-form videos */}
+              {/* Long-form videos — the main content */}
               <div className="flex items-center justify-between mb-4">
                 <p className="text-xs text-muted-foreground">
                   {longForm.length} videos from Nostr relays
@@ -214,6 +211,13 @@ const Index = () => {
                   <VideoCard key={video.id} video={video} />
                 ))}
               </div>
+
+              {/* Shorts — tucked at the bottom as a bonus section */}
+              {shorts.length > 0 && (
+                <div className="mt-10 pt-6 border-t border-border">
+                  <ShortsShelf shorts={shorts} />
+                </div>
+              )}
             </>
           )}
         </div>
