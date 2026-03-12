@@ -52,9 +52,10 @@ const Watch = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading from relays...</p>
+        <div className="flex flex-col items-center gap-3 max-w-md text-center px-4">
+          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-foreground font-medium">Fetching from the Nostr-verse...</p>
+          <p className="text-muted-foreground text-sm">{getRandomLoadingMessage()}</p>
         </div>
       </div>
     );
@@ -63,8 +64,9 @@ const Watch = () => {
   if (error || !video) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground mb-4">{error || "Video not found"}</p>
+        <div className="text-center max-w-md px-4">
+          <p className="text-foreground font-medium mb-2">Well, that didn't work.</p>
+          <p className="text-muted-foreground text-sm mb-4">{getRandomErrorMessage()}</p>
           <button
             onClick={() => navigate("/")}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"

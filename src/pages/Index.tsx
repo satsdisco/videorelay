@@ -43,35 +43,31 @@ const Index = () => {
         </div>
 
         <div className="px-6 pb-8">
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 text-primary animate-spin mb-3" />
-              <p className="text-muted-foreground text-sm">Fetching videos from Nostr relays...</p>
-              <p className="text-muted-foreground/60 text-xs mt-1">Connecting to {6} relays</p>
-            </div>
-          )}
+          {loading && <LoadingState />}
 
           {error && (
             <div className="flex flex-col items-center justify-center py-20">
               <WifiOff className="w-10 h-10 text-muted-foreground mb-3" />
-              <p className="text-muted-foreground mb-4">{error}</p>
+              <p className="text-foreground font-medium mb-1">Oops.</p>
+              <p className="text-muted-foreground text-sm mb-4 text-center max-w-md">{getRandomErrorMessage()}</p>
               <button
                 onClick={refetch}
                 className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
               >
                 <RefreshCw className="w-4 h-4" />
-                Retry
+                Try Again
               </button>
             </div>
           )}
 
           {!loading && !error && videos.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20">
-              <p className="text-muted-foreground text-lg mb-2">No videos found</p>
+              <Zap className="w-10 h-10 text-primary/40 mb-3" />
+              <p className="text-foreground font-medium mb-1">{getRandomEmptyMessage()}</p>
               <p className="text-muted-foreground/60 text-sm mb-4">
                 {hashtag
-                  ? `No videos with #${hashtag} tag found on relays`
-                  : "No video events found on connected relays"}
+                  ? `No videos tagged #${hashtag}. The relays have spoken.`
+                  : "Try a different category or check back later."}
               </p>
               <button
                 onClick={() => {
