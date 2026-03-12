@@ -48,8 +48,10 @@ const AppRoutes = () => {
         />
         <Route path="/watch/:id" element={<Watch />} />
         <Route path="/shorts" element={<Shorts />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/channel/:pubkey" element={<Channel />} />
         <Route path="/upload" element={<Upload />} />
+        <Route path="*" element={<NotFound />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
 

@@ -115,6 +115,7 @@ const Sidebar = ({ collapsed, activeView, onChangeView, onOpenRelays }: SidebarP
             )}
           </button>
           <button
+            onClick={() => navigate("/settings")}
             className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-secondary-foreground hover:bg-secondary transition-colors ${
               collapsed ? "justify-center" : ""
             }`}
