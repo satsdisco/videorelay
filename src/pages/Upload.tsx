@@ -90,7 +90,7 @@ const Upload = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
       <div className="sticky top-0 z-50 flex items-center gap-3 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border">
         <button onClick={() => navigate("/")} className="p-2 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="w-5 h-5 text-foreground" />
