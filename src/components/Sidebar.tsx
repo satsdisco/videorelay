@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import {
   Home,
   TrendingUp,
@@ -35,6 +36,7 @@ const libraryLinks = [
 ];
 
 const Sidebar = ({ collapsed, activeView, onChangeView, onOpenRelays }: SidebarProps) => {
+  const navigate = useNavigate();
   return (
     <aside
       className={`fixed left-0 top-14 bottom-0 z-40 bg-background border-r border-border transition-all duration-300 ${
@@ -113,6 +115,7 @@ const Sidebar = ({ collapsed, activeView, onChangeView, onOpenRelays }: SidebarP
             )}
           </button>
           <button
+            onClick={() => navigate("/settings")}
             className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-secondary-foreground hover:bg-secondary transition-colors ${
               collapsed ? "justify-center" : ""
             }`}
