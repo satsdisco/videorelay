@@ -10,6 +10,11 @@ export const DEFAULT_RELAYS = [
   "wss://relay.primal.net",
   "wss://nostr-pub.wellorder.net",
   "wss://nostr.fmt.wiz.biz",
+  "wss://relay.noswhere.com",
+  "wss://nostr.mom",
+  "wss://relay.mostr.pub",
+  "wss://offchain.pub",
+  "wss://relay.nostrati.com",
 ];
 
 // Video event kinds per NIP-71

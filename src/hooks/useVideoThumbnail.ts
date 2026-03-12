@@ -1,16 +1,28 @@
 import { useState, useEffect } from "react";
 
+// Known CORS-friendly video hosts
+const CORS_FRIENDLY = ["nostr.build", "void.cat", "satellite.earth", "cdn.jb55.com"];
+
+function isCorsLikely(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return CORS_FRIENDLY.some((h) => host.endsWith(h));
+  } catch {
+    return false;
+  }
+}
+
 export function useVideoThumbnail(videoUrl: string, existingThumbnail?: string) {
   const [thumbnail, setThumbnail] = useState<string | null>(existingThumbnail || null);
 
   useEffect(() => {
-    // If we already have a thumbnail, don't generate one
     if (existingThumbnail) {
       setThumbnail(existingThumbnail);
       return;
     }
 
-    if (!videoUrl) return;
+    // Skip thumbnail generation for non-CORS-friendly hosts to avoid console errors
+    if (!videoUrl || !isCorsLikely(videoUrl)) return;
 
     let cancelled = false;
     const video = document.createElement("video");
@@ -24,7 +36,6 @@ export function useVideoThumbnail(videoUrl: string, existingThumbnail?: string) 
     };
 
     video.addEventListener("loadeddata", () => {
-      // Seek to 2 seconds or 10% of duration
       video.currentTime = Math.min(2, video.duration * 0.1);
     });
 
@@ -50,7 +61,6 @@ export function useVideoThumbnail(videoUrl: string, existingThumbnail?: string) 
       cleanup();
     });
 
-    // Timeout after 8s
     const timeout = setTimeout(() => {
       cancelled = true;
       cleanup();
