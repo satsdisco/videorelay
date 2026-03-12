@@ -77,6 +77,20 @@
   background: hsl(265 80% 60%);
 }
 
+/* Safe area for mobile bottom nav */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Touch-friendly scrollbar hide */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Glow effect utility */
 .glow-purple {
   box-shadow: 0 0 20px -5px hsl(265 80% 60% / 0.3);

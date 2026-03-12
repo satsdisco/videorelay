@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Header from "@/components/Header";
 import Sidebar, { type SidebarView } from "@/components/Sidebar";
+import MobileNav from "@/components/MobileNav";
+import MobileSearch from "@/components/MobileSearch";
 import RelayManager from "@/components/RelayManager";
 import CategoryBar from "@/components/CategoryBar";
 import VideoCard from "@/components/VideoCard";
@@ -8,11 +10,9 @@ import ShortCard from "@/components/ShortCard";
 import { useNostrVideos } from "@/hooks/useNostrVideos";
 import { useRelayStore } from "@/hooks/useRelayStore";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame, Users } from "lucide-react";
 import { getRandomLoadingMessage, getRandomEmptyMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
-
-import thumb1 from "@/assets/thumb-1.jpg";
-import thumb2 from "@/assets/thumb-2.jpg";
 
 const LoadingState = () => {
   const [message, setMessage] = useState(getRandomLoadingMessage);
@@ -50,20 +50,20 @@ const ShortsShelf = ({ shorts }: { shorts: import("@/lib/nostr").ParsedVideo[] }
   const scroll = (dir: "left" | "right") => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollBy({ left: dir === "left" ? -400 : 400, behavior: "smooth" });
+    el.scrollBy({ left: dir === "left" ? -300 : 300, behavior: "smooth" });
   };
 
   if (shorts.length === 0) return null;
 
   return (
-    <div className="mb-8">
+    <div className="mb-6 md:mb-8">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Flame className="w-5 h-5 text-primary" />
           <h2 className="text-base font-bold text-foreground">Shorts</h2>
           <span className="text-xs text-muted-foreground">({shorts.length})</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="hidden sm:flex items-center gap-1">
           <button
             onClick={() => scroll("left")}
             disabled={!canScrollLeft}
@@ -83,10 +83,12 @@ const ShortsShelf = ({ shorts }: { shorts: import("@/lib/nostr").ParsedVideo[] }
       <div
         ref={scrollRef}
         onScroll={checkScroll}
-        className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
+        className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 snap-x snap-mandatory md:snap-none"
       >
         {shorts.map((video) => (
-          <ShortCard key={video.id} video={video} />
+          <div key={video.id} className="snap-start">
+            <ShortCard video={video} />
+          </div>
         ))}
       </div>
     </div>
@@ -94,24 +96,25 @@ const ShortsShelf = ({ shorts }: { shorts: import("@/lib/nostr").ParsedVideo[] }
 };
 
 const Index = () => {
+  const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeView, setActiveView] = useState<SidebarView>("home");
   const [relayManagerOpen, setRelayManagerOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   const { activeRelays } = useRelayStore();
   const { pubkey } = useNostrAuth();
 
-  // Debounced search for relay queries
+  // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Map sidebar view to fetch options
   const fetchOptions = useMemo(() => {
     const base = {
       relays: activeRelays,
@@ -148,7 +151,6 @@ const Index = () => {
     observerRef.current.observe(node);
   }, [hasMore, loadingMore, loading, loadMore]);
 
-  // Handle sidebar view changes
   const handleViewChange = (view: SidebarView) => {
     setActiveView(view);
     if (view === "trending" || view === "zapped") {
@@ -160,7 +162,6 @@ const Index = () => {
 
   const { shorts, longForm } = useMemo(() => {
     let filtered = videos;
-    // Client-side filter as fallback (NIP-50 search also runs relay-side)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = videos.filter(
@@ -170,17 +171,14 @@ const Index = () => {
           v.tags.some((t) => t.toLowerCase().includes(q))
       );
     }
-    const shorts = filtered.filter((v) => v.isShort);
-    const longForm = filtered.filter((v) => !v.isShort);
-    return { shorts, longForm };
+    return {
+      shorts: filtered.filter((v) => v.isShort),
+      longForm: filtered.filter((v) => !v.isShort),
+    };
   }, [videos, searchQuery]);
 
   const handleCategoryChange = (category: string) => {
-    if (category === "All") {
-      setHashtag(undefined);
-    } else {
-      setHashtag(category.toLowerCase());
-    }
+    setHashtag(category === "All" ? undefined : category.toLowerCase());
   };
 
   const viewTitle = {
@@ -194,47 +192,66 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} onSearch={setSearchQuery} />
-      <Sidebar
-        collapsed={sidebarCollapsed}
+
+      {/* Desktop sidebar */}
+      {!isMobile && (
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          activeView={activeView}
+          onChangeView={handleViewChange}
+          onOpenRelays={() => setRelayManagerOpen(true)}
+        />
+      )}
+
+      {/* Mobile bottom nav */}
+      <MobileNav
         activeView={activeView}
         onChangeView={handleViewChange}
-        onOpenRelays={() => setRelayManagerOpen(true)}
+        onSearchOpen={() => setMobileSearchOpen(true)}
       />
+
+      {/* Mobile search overlay */}
+      <MobileSearch
+        open={mobileSearchOpen}
+        onClose={() => setMobileSearchOpen(false)}
+        onSearch={setSearchQuery}
+      />
+
       <RelayManager open={relayManagerOpen} onClose={() => setRelayManagerOpen(false)} />
 
       <main
-        className={`pt-14 transition-all duration-300 ${
-          sidebarCollapsed ? "ml-[72px]" : "ml-56"
+        className={`pt-14 pb-16 md:pb-0 transition-all duration-300 ${
+          isMobile ? "ml-0" : sidebarCollapsed ? "ml-[72px]" : "ml-56"
         }`}
       >
-        <div className="px-6 py-2">
+        <div className="px-3 md:px-6 py-2">
           <CategoryBar onCategoryChange={handleCategoryChange} />
         </div>
 
-        <div className="px-6 pb-8">
+        <div className="px-3 md:px-6 pb-8">
           {/* View header */}
           {viewTitle && (
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3 md:mb-4">
               {activeView === "following" && <Users className="w-5 h-5 text-primary" />}
               {activeView === "trending" && <TrendingUp className="w-5 h-5 text-primary" />}
               {activeView === "zapped" && <Zap className="w-5 h-5 text-primary" />}
-              <h1 className="text-xl font-bold text-foreground">{viewTitle}</h1>
+              <h1 className="text-lg md:text-xl font-bold text-foreground">{viewTitle}</h1>
             </div>
           )}
 
           {/* Following requires login */}
           {activeView === "following" && !pubkey && (
-            <div className="flex flex-col items-center justify-center py-20">
+            <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4">
               <Users className="w-10 h-10 text-muted-foreground mb-3" />
-              <p className="text-foreground font-medium mb-1">Sign in to see who you follow</p>
-              <p className="text-muted-foreground text-sm">Connect your Nostr extension to view content from people you follow.</p>
+              <p className="text-foreground font-medium mb-1 text-center">Sign in to see who you follow</p>
+              <p className="text-muted-foreground text-sm text-center">Connect your Nostr extension to view content from people you follow.</p>
             </div>
           )}
 
           {loading && <LoadingState />}
 
           {error && (
-            <div className="flex flex-col items-center justify-center py-20">
+            <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4">
               <WifiOff className="w-10 h-10 text-muted-foreground mb-3" />
               <p className="text-foreground font-medium mb-1">Oops.</p>
               <p className="text-muted-foreground text-sm mb-4 text-center max-w-md">{getRandomErrorMessage()}</p>
@@ -249,10 +266,10 @@ const Index = () => {
           )}
 
           {!loading && !error && videos.length === 0 && !(activeView === "following" && !pubkey) && (
-            <div className="flex flex-col items-center justify-center py-20">
+            <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4">
               <Zap className="w-10 h-10 text-primary/40 mb-3" />
-              <p className="text-foreground font-medium mb-1">{getRandomEmptyMessage()}</p>
-              <p className="text-muted-foreground/60 text-sm mb-4">
+              <p className="text-foreground font-medium mb-1 text-center">{getRandomEmptyMessage()}</p>
+              <p className="text-muted-foreground/60 text-sm mb-4 text-center">
                 {hashtag
                   ? `No videos tagged #${hashtag}. The relays have spoken.`
                   : "Try a different category or check back later."}
@@ -272,16 +289,16 @@ const Index = () => {
 
           {!loading && !error && videos.length > 0 && (
             <>
-              {/* Long-form videos — the main content */}
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-xs text-muted-foreground">
+              {/* Sort controls */}
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <p className="text-xs text-muted-foreground hidden sm:block">
                   {longForm.length} videos from {activeRelays.length} relays
                 </p>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-between sm:justify-end">
                   <div className="flex items-center bg-secondary rounded-full p-0.5">
                     <button
                       onClick={() => setSortBy("recent")}
-                      className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                      className={`flex items-center gap-1 px-3 py-1.5 md:py-1 rounded-full text-xs font-medium transition-all ${
                         sortBy === "recent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
@@ -290,7 +307,7 @@ const Index = () => {
                     </button>
                     <button
                       onClick={() => setSortBy("popular")}
-                      className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                      className={`flex items-center gap-1 px-3 py-1.5 md:py-1 rounded-full text-xs font-medium transition-all ${
                         sortBy === "popular" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
@@ -307,7 +324,9 @@ const Index = () => {
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8">
+
+              {/* Video grid — 1 col mobile, 2 col sm, 3 col lg, 4 col xl */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 md:gap-x-4 gap-y-5 md:gap-y-8">
                 {longForm.map((video) => (
                   <VideoCard key={video.id} video={video} />
                 ))}
@@ -328,9 +347,9 @@ const Index = () => {
                 <p className="text-center text-xs text-muted-foreground py-6">You've reached the end — {longForm.length} videos loaded</p>
               )}
 
-              {/* Shorts — tucked at the bottom as a bonus section */}
+              {/* Shorts shelf */}
               {shorts.length > 0 && (
-                <div className="mt-10 pt-6 border-t border-border">
+                <div className="mt-8 md:mt-10 pt-6 border-t border-border">
                   <ShortsShelf shorts={shorts} />
                 </div>
               )}
