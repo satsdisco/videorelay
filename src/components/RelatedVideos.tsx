@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo, VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND } from "@/lib/nostr";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
-import { useVideoThumbnail } from "@/hooks/useVideoThumbnail";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { getCachedVideos } from "@/lib/videoCache";
 
 import thumb1 from "@/assets/thumb-1.jpg";
 import thumb2 from "@/assets/thumb-2.jpg";
@@ -16,8 +16,7 @@ const RelatedVideoItem = ({ video }: { video: ParsedVideo }) => {
   const { profile } = useNostrProfile(video.pubkey);
   const navigate = useNavigate();
   const displayName = profile?.displayName || profile?.name || video.pubkey.slice(0, 10) + "...";
-  const generatedThumb = useVideoThumbnail(video.videoUrl, video.thumbnail || undefined);
-  const thumbnail = generatedThumb || fallbackThumbs[video.id.charCodeAt(0) % fallbackThumbs.length];
+  const thumbnail = video.thumbnail || fallbackThumbs[video.id.charCodeAt(0) % fallbackThumbs.length];
 
   return (
     <div
@@ -30,6 +29,7 @@ const RelatedVideoItem = ({ video }: { video: ParsedVideo }) => {
           alt={video.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
+          decoding="async"
           onError={(e) => {
             (e.target as HTMLImageElement).src = fallbackThumbs[0];
           }}
@@ -57,19 +57,38 @@ interface RelatedVideosProps {
 }
 
 const RelatedVideos = ({ currentVideoId, tags }: RelatedVideosProps) => {
-  const [videos, setVideos] = useState<ParsedVideo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [videos, setVideos] = useState<ParsedVideo[]>(() => {
+    // Try cache first for instant related videos
+    const cached = getCachedVideos();
+    if (cached.length > 0) {
+      const tagSet = new Set(tags.map(t => t.toLowerCase()));
+      return cached
+        .filter(v => v.id !== currentVideoId)
+        .sort((a, b) => {
+          const aMatch = a.tags.some(t => tagSet.has(t.toLowerCase()));
+          const bMatch = b.tags.some(t => tagSet.has(t.toLowerCase()));
+          if (aMatch && !bMatch) return -1;
+          if (!aMatch && bMatch) return 1;
+          return b.publishedAt - a.publishedAt;
+        })
+        .slice(0, 12);
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(videos.length === 0);
 
-  useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
+  // Fetch from relays in background to supplement cache
+  useState(() => {
+    if (videos.length >= 8) {
+      setLoading(false);
+      return;
+    }
+    const fetchRelated = async () => {
       try {
         const pool = getPool();
-
-        // Fetch by shared tags, or just recent if no tags
         const filter = tags.length > 0
-          ? { kinds: [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND], "#t": [tags[0]], limit: 20 }
-          : { kinds: [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND], limit: 20 };
+          ? { kinds: [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND] as number[], "#t": [tags[0]], limit: 20 }
+          : { kinds: [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND] as number[], limit: 20 };
 
         const events = await pool.querySync(DEFAULT_RELAYS, filter);
         const parsed = events
@@ -78,15 +97,15 @@ const RelatedVideos = ({ currentVideoId, tags }: RelatedVideosProps) => {
           .sort((a, b) => b.publishedAt - a.publishedAt)
           .slice(0, 12);
 
-        setVideos(parsed);
+        if (parsed.length > 0) setVideos(parsed);
       } catch (err) {
         console.error("Failed to fetch related videos:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetch();
-  }, [currentVideoId, tags]);
+    fetchRelated();
+  });
 
   return (
     <div>

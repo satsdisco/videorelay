@@ -4,8 +4,10 @@ import Sidebar, { type SidebarView } from "@/components/Sidebar";
 import RelayManager from "@/components/RelayManager";
 import CategoryBar from "@/components/CategoryBar";
 import VideoCard from "@/components/VideoCard";
+import VideoCardSkeleton from "@/components/VideoCardSkeleton";
 import ShortCard from "@/components/ShortCard";
 import { useNostrVideos, type TimePeriod } from "@/hooks/useNostrVideos";
+import { useBatchProfiles } from "@/hooks/useNostrProfile";
 import { useRelayStore } from "@/hooks/useRelayStore";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -152,6 +154,10 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
 
   const { videos, loading, loadingMore, error, hasMore, refetch, loadMore } = useNostrVideos(fetchOptions);
 
+  // Batch-fetch profiles for all visible videos
+  const pubkeys = useMemo(() => [...new Set(videos.map(v => v.pubkey))], [videos]);
+  const { profiles } = useBatchProfiles(pubkeys);
+
   // Infinite scroll
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
@@ -252,7 +258,13 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
             </div>
           )}
 
-          {loading && <LoadingState />}
+          {loading && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 md:gap-x-4 gap-y-5 md:gap-y-8">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <VideoCardSkeleton key={i} />
+              ))}
+            </div>
+          )}
 
           {error && (
             <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4">
@@ -354,7 +366,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
               {/* Video grid — 1 col mobile, 2 col sm, 3 col lg, 4 col xl */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 md:gap-x-4 gap-y-5 md:gap-y-8">
                 {longForm.map((video) => (
-                  <VideoCard key={video.id} video={video} />
+                  <VideoCard key={video.id} video={video} cachedProfile={profiles.get(video.pubkey) || null} />
                 ))}
               </div>
 
