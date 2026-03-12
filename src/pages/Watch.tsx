@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Zap, Share2, ExternalLink, UserPlus, UserCheck, Loader2 } from "lucide-react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo } from "@/lib/nostr";
+import { getCachedVideo, cacheVideos } from "@/lib/videoCache";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { useNostrFollow } from "@/hooks/useNostrFollow";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
@@ -15,8 +16,9 @@ import thumb1 from "@/assets/thumb-1.jpg";
 const Watch = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [video, setVideo] = useState<ParsedVideo | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Try cache first for instant display
+  const [video, setVideo] = useState<ParsedVideo | null>(() => id ? getCachedVideo(id) : null);
+  const [loading, setLoading] = useState(!video);
   const [error, setError] = useState<string | null>(null);
   const [zapAmount, setZapAmount] = useState<number | null>(null);
   const [showZapModal, setShowZapModal] = useState(false);
@@ -26,6 +28,13 @@ const Watch = () => {
 
   useEffect(() => {
     if (!id) return;
+    // If already cached, skip relay fetch
+    const cached = getCachedVideo(id);
+    if (cached) {
+      setVideo(cached);
+      setLoading(false);
+      return;
+    }
     const fetchVideo = async () => {
       setLoading(true);
       try {
@@ -33,8 +42,10 @@ const Watch = () => {
         const events = await pool.querySync(DEFAULT_RELAYS, { ids: [id], limit: 1 });
         if (events.length > 0) {
           const parsed = parseVideoEvent(events[0]);
-          if (parsed) setVideo(parsed);
-          else setError("Could not parse video event");
+          if (parsed) {
+            cacheVideos([parsed]);
+            setVideo(parsed);
+          } else setError("Could not parse video event");
         } else {
           setError("Video not found on relays");
         }
