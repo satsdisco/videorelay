@@ -1,8 +1,6 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, type Dispatch, type SetStateAction } from "react";
 import Header from "@/components/Header";
 import Sidebar, { type SidebarView } from "@/components/Sidebar";
-import MobileNav from "@/components/MobileNav";
-import MobileSearch from "@/components/MobileSearch";
 import RelayManager from "@/components/RelayManager";
 import CategoryBar from "@/components/CategoryBar";
 import VideoCard from "@/components/VideoCard";
