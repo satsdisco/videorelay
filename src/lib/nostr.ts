@@ -9,7 +9,6 @@ export const DEFAULT_RELAYS = [
   "wss://nostr.wine",
   "wss://relay.primal.net",
   "wss://nostr-pub.wellorder.net",
-  "wss://relay.nostr.bg",
   "wss://nostr.fmt.wiz.biz",
 ];
 

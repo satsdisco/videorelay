@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 const STORAGE_KEY = "nostrtube_relays";
 
@@ -11,7 +11,6 @@ export const DEFAULT_RELAYS = [
   "wss://nostr.wine",
   "wss://relay.primal.net",
   "wss://nostr-pub.wellorder.net",
-  "wss://relay.nostr.bg",
   "wss://nostr.fmt.wiz.biz",
 ];
 
@@ -39,7 +38,10 @@ export function useRelayStore() {
     saveRelays(relays);
   }, [relays]);
 
-  const activeRelays = relays.filter((r) => r.enabled).map((r) => r.url);
+  const activeRelays = useMemo(
+    () => relays.filter((r) => r.enabled).map((r) => r.url),
+    [relays]
+  );
 
   const addRelay = useCallback((url: string) => {
     const normalized = url.trim().replace(/\/+$/, "");

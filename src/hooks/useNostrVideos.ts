@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, type ParsedVideo, VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND } from "@/lib/nostr";
 
 import type { Filter, Event } from "nostr-tools";
@@ -24,11 +24,23 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const relaysSignature = relays.join("|");
+  const authorsSignature = authors?.join("|") ?? "";
+
+  const stableRelays = useMemo(() => relays, [relaysSignature]);
+  const stableAuthors = useMemo(() => authors, [authorsSignature]);
+
   const fetchVideos = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
+      if (stableRelays.length === 0) {
+        setVideos([]);
+        setError("No relays enabled. Enable at least one relay in Relay Settings.");
+        return;
+      }
+
       const pool = getPool();
 
       const filter: Filter = {
@@ -36,15 +48,15 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
         limit,
       };
 
-      if (authors?.length) {
-        filter.authors = authors;
+      if (stableAuthors?.length) {
+        filter.authors = stableAuthors;
       }
 
       if (hashtag) {
         filter["#t"] = [hashtag.toLowerCase()];
       }
 
-      const events: Event[] = await pool.querySync(relays, filter);
+      const events: Event[] = await pool.querySync(stableRelays, filter);
 
       const parsed = events
         .map(parseVideoEvent)
@@ -59,7 +71,7 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
             "#e": videoIds,
             limit: 500,
           };
-          const zapEvents = await pool.querySync(relays, zapFilter);
+          const zapEvents = await pool.querySync(stableRelays, zapFilter);
 
           // Count zaps per video and extract amounts
           const zapCounts = new Map<string, number>();
@@ -69,7 +81,6 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
               const videoId = eTag[1];
               // Try to extract bolt11 amount from description
               let amount = 1; // default count
-              const bolt11Tag = zap.tags.find((t) => t[0] === "bolt11");
               const descTag = zap.tags.find((t) => t[0] === "description");
               if (descTag) {
                 try {
@@ -107,7 +118,7 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [relays, limit, authors, hashtag, sortBy]);
+  }, [stableRelays, limit, stableAuthors, hashtag, sortBy]);
 
   useEffect(() => {
     fetchVideos();
