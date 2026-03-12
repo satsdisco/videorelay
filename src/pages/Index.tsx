@@ -4,7 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import CategoryBar from "@/components/CategoryBar";
 import VideoCard from "@/components/VideoCard";
 import { useNostrVideos } from "@/hooks/useNostrVideos";
-import { Loader2, WifiOff, RefreshCw, Zap } from "lucide-react";
+import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock } from "lucide-react";
 import { getRandomLoadingMessage, getRandomEmptyMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
 
 // Fallback thumbnails for empty state
