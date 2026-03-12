@@ -154,6 +154,10 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
 
   const { videos, loading, loadingMore, error, hasMore, refetch, loadMore } = useNostrVideos(fetchOptions);
 
+  // Batch-fetch profiles for all visible videos
+  const pubkeys = useMemo(() => [...new Set(videos.map(v => v.pubkey))], [videos]);
+  const { profiles } = useBatchProfiles(pubkeys);
+
   // Infinite scroll
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
