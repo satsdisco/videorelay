@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const categories = [
   "All",
@@ -6,12 +7,21 @@ const categories = [
   "Lightning",
   "Nostr",
   "Privacy",
-  "Mining",
-  "Tutorial",
   "Podcast",
+  "Documentary",
+  "Education",
+  "Tutorial",
+  "Entertainment",
   "Music",
   "Gaming",
   "News",
+  "Mining",
+  "Dev",
+  "Security",
+  "Finance",
+  "Philosophy",
+  "Art",
+  "Comedy",
 ];
 
 interface CategoryBarProps {
@@ -20,6 +30,20 @@ interface CategoryBarProps {
 
 const CategoryBar = ({ onCategoryChange }: CategoryBarProps) => {
   const [active, setActive] = useState("All");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 10);
+  };
+
+  const scroll = (dir: "left" | "right") => {
+    scrollRef.current?.scrollBy({ left: dir === "left" ? -200 : 200, behavior: "smooth" });
+  };
 
   const handleClick = (cat: string) => {
     setActive(cat);
@@ -27,20 +51,42 @@ const CategoryBar = ({ onCategoryChange }: CategoryBarProps) => {
   };
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto py-3 px-1 scrollbar-hide">
-      {categories.map((cat) => (
+    <div className="relative flex items-center gap-1">
+      {canScrollLeft && (
         <button
-          key={cat}
-          onClick={() => handleClick(cat)}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-            active === cat
-              ? "bg-primary text-primary-foreground"
-              : "bg-secondary text-secondary-foreground hover:bg-muted"
-          }`}
+          onClick={() => scroll("left")}
+          className="absolute left-0 z-10 p-1 rounded-full bg-background/90 border border-border shadow-sm hover:bg-secondary transition-colors"
         >
-          {cat}
+          <ChevronLeft className="w-4 h-4 text-foreground" />
         </button>
-      ))}
+      )}
+      <div
+        ref={scrollRef}
+        onScroll={checkScroll}
+        className="flex items-center gap-2 overflow-x-auto py-3 px-1 scrollbar-hide"
+      >
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => handleClick(cat)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              active === cat
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-muted"
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+      {canScrollRight && (
+        <button
+          onClick={() => scroll("right")}
+          className="absolute right-0 z-10 p-1 rounded-full bg-background/90 border border-border shadow-sm hover:bg-secondary transition-colors"
+        >
+          <ChevronRight className="w-4 h-4 text-foreground" />
+        </button>
+      )}
     </div>
   );
 };

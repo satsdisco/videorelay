@@ -5,11 +5,11 @@ import RelayManager from "@/components/RelayManager";
 import CategoryBar from "@/components/CategoryBar";
 import VideoCard from "@/components/VideoCard";
 import ShortCard from "@/components/ShortCard";
-import { useNostrVideos } from "@/hooks/useNostrVideos";
+import { useNostrVideos, type TimePeriod } from "@/hooks/useNostrVideos";
 import { useRelayStore } from "@/hooks/useRelayStore";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame, Users } from "lucide-react";
+import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame, Users, Calendar, Trophy } from "lucide-react";
 import { getRandomLoadingMessage, getRandomEmptyMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
 
 const LoadingState = () => {
@@ -102,11 +102,20 @@ interface IndexProps {
   setSearchQuery: Dispatch<SetStateAction<string>>;
 }
 
+const timePeriodLabels: { value: TimePeriod; label: string; icon?: typeof Calendar }[] = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "This Week" },
+  { value: "month", label: "This Month" },
+  { value: "year", label: "This Year" },
+  { value: "all", label: "All Time" },
+];
+
 const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpen, searchQuery, setSearchQuery }: IndexProps) => {
   const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
   const [relayManagerOpen, setRelayManagerOpen] = useState(false);
 
   const { activeRelays } = useRelayStore();
@@ -126,11 +135,12 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
       hashtag,
       sortBy: sortBy as "recent" | "popular",
       search: debouncedSearch || undefined,
+      timePeriod,
     };
 
     switch (activeView) {
       case "trending":
-        return { ...base, sortBy: "popular" as const };
+        return { ...base, sortBy: "popular" as const, timePeriod: timePeriod === "all" ? "week" as const : timePeriod };
       case "zapped":
         return { ...base, sortBy: "popular" as const };
       case "following":
@@ -138,7 +148,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
       default:
         return base;
     }
-  }, [activeView, activeRelays, hashtag, sortBy, pubkey, debouncedSearch]);
+  }, [activeView, activeRelays, hashtag, sortBy, pubkey, debouncedSearch, timePeriod]);
 
   const { videos, loading, loadingMore, error, hasMore, refetch, loadMore } = useNostrVideos(fetchOptions);
 
@@ -159,6 +169,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
     setActiveView(view);
     if (view === "trending" || view === "zapped") {
       setSortBy("popular");
+      if (timePeriod === "all" && view === "trending") setTimePeriod("week");
     } else if (view === "home") {
       setSortBy("recent");
     }
@@ -282,40 +293,62 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
 
           {!loading && !error && videos.length > 0 && (
             <>
-              {/* Sort controls */}
-              <div className="flex items-center justify-between mb-3 md:mb-4">
-                <p className="text-xs text-muted-foreground hidden sm:block">
-                  {longForm.length} videos from {activeRelays.length} relays
-                </p>
-                <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                  <div className="flex items-center bg-secondary rounded-full p-0.5">
+              {/* Sort & time controls */}
+              <div className="flex flex-col gap-2 mb-3 md:mb-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground hidden sm:block">
+                    {longForm.length} videos from {activeRelays.length} relays
+                  </p>
+                  <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                    <div className="flex items-center bg-secondary rounded-full p-0.5">
+                      <button
+                        onClick={() => setSortBy("recent")}
+                        className={`flex items-center gap-1 px-3 py-1.5 md:py-1 rounded-full text-xs font-medium transition-all ${
+                          sortBy === "recent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Clock className="w-3 h-3" />
+                        Recent
+                      </button>
+                      <button
+                        onClick={() => setSortBy("popular")}
+                        className={`flex items-center gap-1 px-3 py-1.5 md:py-1 rounded-full text-xs font-medium transition-all ${
+                          sortBy === "popular" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <TrendingUp className="w-3 h-3" />
+                        Popular
+                      </button>
+                    </div>
                     <button
-                      onClick={() => setSortBy("recent")}
-                      className={`flex items-center gap-1 px-3 py-1.5 md:py-1 rounded-full text-xs font-medium transition-all ${
-                        sortBy === "recent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                      }`}
+                      onClick={refetch}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
                     >
-                      <Clock className="w-3 h-3" />
-                      Recent
-                    </button>
-                    <button
-                      onClick={() => setSortBy("popular")}
-                      className={`flex items-center gap-1 px-3 py-1.5 md:py-1 rounded-full text-xs font-medium transition-all ${
-                        sortBy === "popular" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <TrendingUp className="w-3 h-3" />
-                      Popular
+                      <RefreshCw className="w-3 h-3" />
+                      Refresh
                     </button>
                   </div>
-                  <button
-                    onClick={refetch}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    Refresh
-                  </button>
                 </div>
+
+                {/* Time period filter */}
+                {(sortBy === "popular" || activeView === "trending" || activeView === "zapped") && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                    <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    {timePeriodLabels.map((tp) => (
+                      <button
+                        key={tp.value}
+                        onClick={() => setTimePeriod(tp.value)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                          timePeriod === tp.value
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        {tp.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Video grid — 1 col mobile, 2 col sm, 3 col lg, 4 col xl */}
