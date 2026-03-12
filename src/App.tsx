@@ -13,6 +13,7 @@ import Watch from "./pages/Watch.tsx";
 import Channel from "./pages/Channel.tsx";
 import Upload from "./pages/Upload.tsx";
 import Shorts from "./pages/Shorts.tsx";
+import Settings from "./pages/Settings.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
