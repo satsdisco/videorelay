@@ -33,7 +33,6 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
     }
   };
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -48,12 +47,12 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
   const avatar = profile?.picture;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-14 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
+    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-14 px-3 md:px-4 bg-background/95 backdrop-blur-sm border-b border-border">
       {/* Left */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3">
         <button
           onClick={onToggleSidebar}
-          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+          className="hidden md:flex p-2 rounded-lg hover:bg-secondary transition-colors"
         >
           <Menu className="w-5 h-5 text-foreground" />
         </button>
@@ -65,8 +64,8 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
         </div>
       </div>
 
-      {/* Center - Search */}
-      <div className="hidden sm:flex items-center flex-1 max-w-xl mx-8">
+      {/* Center - Search (desktop only) */}
+      <div className="hidden md:flex items-center flex-1 max-w-xl mx-8">
         <div className="flex items-center w-full bg-secondary rounded-full overflow-hidden border border-border focus-within:border-primary/50 transition-colors">
           <input
             type="text"
@@ -94,10 +93,6 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
 
       {/* Right */}
       <div className="flex items-center gap-1">
-        <button className="sm:hidden p-2 rounded-lg hover:bg-secondary transition-colors">
-          <Search className="w-5 h-5 text-foreground" />
-        </button>
-
         {isLoggedIn ? (
           <>
             <button
@@ -107,12 +102,12 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
             >
               <Upload className="w-5 h-5 text-foreground group-hover:text-primary transition-colors" />
             </button>
-            <button className="p-2 rounded-lg hover:bg-secondary transition-colors relative">
+            <button className="hidden md:flex p-2 rounded-lg hover:bg-secondary transition-colors relative">
               <Bell className="w-5 h-5 text-foreground" />
             </button>
 
             {/* User dropdown */}
-            <div className="relative ml-2" ref={dropdownRef}>
+            <div className="relative ml-1 md:ml-2" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-primary-foreground ring-2 ring-transparent hover:ring-primary/50 transition-all"
@@ -127,7 +122,6 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
 
               {dropdownOpen && (
                 <div className="absolute right-0 top-full mt-2 w-72 bg-background border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
-                  {/* Profile header */}
                   <div className="p-4 border-b border-border bg-secondary/30">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-bold text-primary-foreground shrink-0">
@@ -153,7 +147,6 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
                     </div>
                   </div>
 
-                  {/* Menu items */}
                   <div className="p-1">
                     <button
                       onClick={() => {
@@ -193,10 +186,13 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
         ) : (
           <button
             onClick={handleLogin}
-            className="flex items-center gap-2 ml-2 px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity text-sm font-medium"
+            className="flex items-center gap-2 ml-1 px-3 py-2 md:px-4 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity text-sm font-medium"
           >
             <LogIn className="w-4 h-4" />
-            {isExtensionAvailable ? "Sign in with Nostr" : "Install Nostr Extension"}
+            <span className="hidden sm:inline">
+              {isExtensionAvailable ? "Sign in with Nostr" : "Install Nostr Extension"}
+            </span>
+            <span className="sm:hidden">Sign in</span>
           </button>
         )}
       </div>
