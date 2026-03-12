@@ -32,8 +32,8 @@ const LoadingState = () => {
   );
 };
 
-
-  const Index = () => {
+const Index = () => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
 
   const { videos, loading, error, refetch } = useNostrVideos({
