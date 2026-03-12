@@ -88,7 +88,8 @@ const VideoCard = ({ video }: VideoCardProps) => {
               navigate(`/channel/${video.pubkey}`);
             }}
           >
-          <div className="flex items-center gap-3 mt-1">
+            {displayName}
+          </p>
             {video.zapCount > 0 && (
               <span className="flex items-center gap-1 text-xs text-zap font-medium">
                 <Zap className="w-3 h-3" fill="currentColor" />
