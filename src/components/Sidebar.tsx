@@ -36,6 +36,7 @@ const libraryLinks = [
 ];
 
 const Sidebar = ({ collapsed, activeView, onChangeView, onOpenRelays }: SidebarProps) => {
+  const navigate = useNavigate();
   return (
     <aside
       className={`fixed left-0 top-14 bottom-0 z-40 bg-background border-r border-border transition-all duration-300 ${
