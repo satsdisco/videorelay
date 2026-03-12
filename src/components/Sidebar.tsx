@@ -11,16 +11,21 @@ import {
   Globe,
 } from "lucide-react";
 
+export type SidebarView = "home" | "trending" | "zapped" | "following" | "live";
+
 interface SidebarProps {
   collapsed: boolean;
+  activeView: SidebarView;
+  onChangeView: (view: SidebarView) => void;
+  onOpenRelays: () => void;
 }
 
-const mainLinks = [
-  { icon: Home, label: "Home", active: true },
-  { icon: TrendingUp, label: "Trending" },
-  { icon: Zap, label: "Most Zapped" },
-  { icon: Users, label: "Following" },
-  { icon: Radio, label: "Live" },
+const mainLinks: { icon: typeof Home; label: string; view: SidebarView }[] = [
+  { icon: Home, label: "Home", view: "home" },
+  { icon: TrendingUp, label: "Trending", view: "trending" },
+  { icon: Zap, label: "Most Zapped", view: "zapped" },
+  { icon: Users, label: "Following", view: "following" },
+  { icon: Radio, label: "Live", view: "live" },
 ];
 
 const libraryLinks = [
@@ -29,12 +34,7 @@ const libraryLinks = [
   { icon: ListVideo, label: "Playlists" },
 ];
 
-const settingsLinks = [
-  { icon: Globe, label: "Relays" },
-  { icon: Settings, label: "Settings" },
-];
-
-const Sidebar = ({ collapsed }: SidebarProps) => {
+const Sidebar = ({ collapsed, activeView, onChangeView, onOpenRelays }: SidebarProps) => {
   return (
     <aside
       className={`fixed left-0 top-14 bottom-0 z-40 bg-background border-r border-border transition-all duration-300 ${
@@ -44,27 +44,31 @@ const Sidebar = ({ collapsed }: SidebarProps) => {
       <nav className="flex flex-col h-full py-3 overflow-y-auto">
         {/* Main */}
         <div className="px-2 space-y-0.5">
-          {mainLinks.map((link) => (
-            <button
-              key={link.label}
-              className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-colors ${
-                link.active
-                  ? "bg-primary/10 text-primary"
-                  : "text-secondary-foreground hover:bg-secondary"
-              } ${collapsed ? "justify-center" : ""}`}
-            >
-              <link.icon
-                className={`w-5 h-5 shrink-0 ${link.active ? "text-primary" : ""}`}
-                fill={link.label === "Most Zapped" && link.active ? "currentColor" : "none"}
-              />
-              {!collapsed && (
-                <span className="text-sm font-medium truncate">{link.label}</span>
-              )}
-              {link.label === "Live" && !collapsed && (
-                <span className="ml-auto w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              )}
-            </button>
-          ))}
+          {mainLinks.map((link) => {
+            const isActive = activeView === link.view;
+            return (
+              <button
+                key={link.label}
+                onClick={() => onChangeView(link.view)}
+                className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-colors ${
+                  isActive
+                    ? "bg-primary/10 text-primary"
+                    : "text-secondary-foreground hover:bg-secondary"
+                } ${collapsed ? "justify-center" : ""}`}
+              >
+                <link.icon
+                  className={`w-5 h-5 shrink-0 ${isActive ? "text-primary" : ""}`}
+                  fill={link.view === "zapped" && isActive ? "currentColor" : "none"}
+                />
+                {!collapsed && (
+                  <span className="text-sm font-medium truncate">{link.label}</span>
+                )}
+                {link.view === "live" && !collapsed && (
+                  <span className="ml-auto w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                )}
+              </button>
+            );
+          })}
         </div>
 
         <div className="mx-4 my-3 border-t border-border" />
@@ -97,19 +101,27 @@ const Sidebar = ({ collapsed }: SidebarProps) => {
 
         {/* Settings */}
         <div className="px-2 space-y-0.5">
-          {settingsLinks.map((link) => (
-            <button
-              key={link.label}
-              className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-secondary-foreground hover:bg-secondary transition-colors ${
-                collapsed ? "justify-center" : ""
-              }`}
-            >
-              <link.icon className="w-5 h-5 shrink-0" />
-              {!collapsed && (
-                <span className="text-sm font-medium truncate">{link.label}</span>
-              )}
-            </button>
-          ))}
+          <button
+            onClick={onOpenRelays}
+            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-secondary-foreground hover:bg-secondary transition-colors ${
+              collapsed ? "justify-center" : ""
+            }`}
+          >
+            <Globe className="w-5 h-5 shrink-0" />
+            {!collapsed && (
+              <span className="text-sm font-medium truncate">Relays</span>
+            )}
+          </button>
+          <button
+            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-secondary-foreground hover:bg-secondary transition-colors ${
+              collapsed ? "justify-center" : ""
+            }`}
+          >
+            <Settings className="w-5 h-5 shrink-0" />
+            {!collapsed && (
+              <span className="text-sm font-medium truncate">Settings</span>
+            )}
+          </button>
         </div>
 
         {/* Footer */}

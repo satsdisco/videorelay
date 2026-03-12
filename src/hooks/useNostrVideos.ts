@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, type ParsedVideo, VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND } from "@/lib/nostr";
+
 import type { Filter, Event } from "nostr-tools";
 
 interface UseNostrVideosOptions {
