@@ -111,13 +111,35 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground">
                   {videos.length} videos from Nostr relays
                 </p>
-                <button
-                  onClick={refetch}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  Refresh
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center bg-secondary rounded-full p-0.5">
+                    <button
+                      onClick={() => setSortBy("recent")}
+                      className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                        sortBy === "recent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Clock className="w-3 h-3" />
+                      Recent
+                    </button>
+                    <button
+                      onClick={() => setSortBy("popular")}
+                      className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                        sortBy === "popular" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <TrendingUp className="w-3 h-3" />
+                      Popular
+                    </button>
+                  </div>
+                  <button
+                    onClick={refetch}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Refresh
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8">
                 {videos.map((video) => (
