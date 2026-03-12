@@ -63,10 +63,8 @@ const Upload = () => {
       const signedEvent = await window.nostr.signEvent(unsignedEvent);
       const pool = getPool();
 
-      const publishPromises = activeRelays.map((relay) =>
-        pool.publish([relay], signedEvent as any).catch(() => null)
-      );
-      await Promise.all(publishPromises);
+      const publishResults = pool.publish(activeRelays, signedEvent as any);
+      await Promise.allSettled(publishResults);
 
       toast({ title: "Published! ⚡", description: "Your video event has been broadcast to relays." });
       navigate("/");
