@@ -93,12 +93,12 @@ const VideoComments = ({ videoId }: VideoCommentsProps) => {
         created_at: Math.floor(Date.now() / 1000),
       };
 
-      const signedEvent = await window.nostr.signEvent(event);
+      const signedEvent = await (window.nostr as any).signEvent(event);
       const pool = getPool();
-      await Promise.any(pool.publish(DEFAULT_RELAYS, signedEvent));
+      const pubs = pool.publish(DEFAULT_RELAYS, signedEvent);
+      await Promise.allSettled(pubs);
 
       setNewComment("");
-      // Add optimistically
       setComments((prev) => [
         {
           id: signedEvent.id,
