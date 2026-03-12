@@ -104,9 +104,22 @@ const Index = () => {
   const { activeRelays } = useRelayStore();
   const { pubkey } = useNostrAuth();
 
+  // Debounced search for relay queries
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Map sidebar view to fetch options
   const fetchOptions = useMemo(() => {
-    const base = { relays: activeRelays, limit: 60, hashtag, sortBy: sortBy as "recent" | "popular" };
+    const base = {
+      relays: activeRelays,
+      limit: 100,
+      hashtag,
+      sortBy: sortBy as "recent" | "popular",
+      search: debouncedSearch || undefined,
+    };
 
     switch (activeView) {
       case "trending":
@@ -118,9 +131,22 @@ const Index = () => {
       default:
         return base;
     }
-  }, [activeView, activeRelays, hashtag, sortBy, pubkey]);
+  }, [activeView, activeRelays, hashtag, sortBy, pubkey, debouncedSearch]);
 
-  const { videos, loading, error, refetch } = useNostrVideos(fetchOptions);
+  const { videos, loading, loadingMore, error, hasMore, refetch, loadMore } = useNostrVideos(fetchOptions);
+
+  // Infinite scroll
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (!node) return;
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+        loadMore();
+      }
+    }, { rootMargin: "400px" });
+    observerRef.current.observe(node);
+  }, [hasMore, loadingMore, loading, loadMore]);
 
   // Handle sidebar view changes
   const handleViewChange = (view: SidebarView) => {
