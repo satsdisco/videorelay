@@ -59,7 +59,7 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
           <img src={logo} alt="NostrTube" className="w-7 h-7" />
           <span className="text-lg font-bold tracking-tight text-foreground">
-            Nostr<span className="text-primary">Tube</span>
+            Video<span className="text-primary">Relay</span>
           </span>
         </div>
       </div>
