@@ -313,6 +313,21 @@ const Index = () => {
                 ))}
               </div>
 
+              {/* Infinite scroll trigger */}
+              {hasMore && (
+                <div ref={loadMoreRef} className="flex items-center justify-center py-8">
+                  {loadingMore && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                      <span className="text-sm">Loading more videos...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!hasMore && longForm.length > 0 && (
+                <p className="text-center text-xs text-muted-foreground py-6">You've reached the end — {longForm.length} videos loaded</p>
+              )}
+
               {/* Shorts — tucked at the bottom as a bonus section */}
               {shorts.length > 0 && (
                 <div className="mt-10 pt-6 border-t border-border">
