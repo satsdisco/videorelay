@@ -5,12 +5,14 @@ import logo from "@/assets/logo.png";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
+  onSearch?: (query: string) => void;
 }
 
-const Header = ({ onToggleSidebar }: HeaderProps) => {
+const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
   const { isLoggedIn, pubkey, profile, isExtensionAvailable, login, logout } = useNostrAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLogin = async () => {
@@ -66,10 +68,20 @@ const Header = ({ onToggleSidebar }: HeaderProps) => {
         <div className="flex items-center w-full bg-secondary rounded-full overflow-hidden border border-border focus-within:border-primary/50 transition-colors">
           <input
             type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && onSearch) {
+                onSearch(searchQuery);
+              }
+            }}
             placeholder="Search videos, creators, relays..."
             className="flex-1 bg-transparent px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
           />
-          <button className="px-4 py-2 bg-secondary hover:bg-muted transition-colors border-l border-border">
+          <button
+            onClick={() => onSearch?.(searchQuery)}
+            className="px-4 py-2 bg-secondary hover:bg-muted transition-colors border-l border-border"
+          >
             <Search className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
