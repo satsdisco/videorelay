@@ -37,9 +37,11 @@ export interface ParsedVideo {
   thumbnail: string;
   videoUrl: string;
   duration: string;
+  durationSeconds: number;
   publishedAt: number;
   tags: string[];
   zapCount: number;
+  isShort: boolean;
   rawEvent: Event;
 }
 
@@ -111,6 +113,10 @@ export function parseVideoEvent(event: Event): ParsedVideo | null {
   const duration = getTag("duration") || "0";
   const hashtags = getAllTags("t");
 
+  const durationSecs = parseInt(duration) || 0;
+  const isShortKind = event.kind === SHORT_VIDEO_KIND || event.kind === ADDRESSABLE_SHORT_KIND;
+  const isShort = isShortKind || (durationSecs > 0 && durationSecs <= 60);
+
   return {
     id: event.id,
     pubkey: event.pubkey,
@@ -118,10 +124,12 @@ export function parseVideoEvent(event: Event): ParsedVideo | null {
     summary,
     thumbnail,
     videoUrl,
-    duration: formatDuration(parseInt(duration) || 0),
+    duration: formatDuration(durationSecs),
+    durationSeconds: durationSecs,
     publishedAt: event.created_at,
     tags: hashtags,
     zapCount: 0,
+    isShort,
     rawEvent: event,
   };
 }

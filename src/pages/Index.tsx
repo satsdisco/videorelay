@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import CategoryBar from "@/components/CategoryBar";
 import VideoCard from "@/components/VideoCard";
+import ShortCard from "@/components/ShortCard";
 import { useNostrVideos } from "@/hooks/useNostrVideos";
-import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock } from "lucide-react";
+import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import { getRandomLoadingMessage, getRandomEmptyMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
 
-// Fallback thumbnails for empty state
 import thumb1 from "@/assets/thumb-1.jpg";
 import thumb2 from "@/assets/thumb-2.jpg";
 
@@ -32,16 +32,80 @@ const LoadingState = () => {
   );
 };
 
+const ShortsShelf = ({ shorts }: { shorts: import("@/lib/nostr").ParsedVideo[] }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 10);
+  };
+
+  const scroll = (dir: "left" | "right") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir === "left" ? -400 : 400, behavior: "smooth" });
+  };
+
+  if (shorts.length === 0) return null;
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Flame className="w-5 h-5 text-primary" />
+          <h2 className="text-base font-bold text-foreground">Shorts</h2>
+          <span className="text-xs text-muted-foreground">({shorts.length})</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => scroll("left")}
+            disabled={!canScrollLeft}
+            className="p-1.5 rounded-full bg-secondary hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="w-4 h-4 text-foreground" />
+          </button>
+          <button
+            onClick={() => scroll("right")}
+            disabled={!canScrollRight}
+            className="p-1.5 rounded-full bg-secondary hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronRight className="w-4 h-4 text-foreground" />
+          </button>
+        </div>
+      </div>
+      <div
+        ref={scrollRef}
+        onScroll={checkScroll}
+        className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
+      >
+        {shorts.map((video) => (
+          <ShortCard key={video.id} video={video} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
 
   const { videos, loading, error, refetch } = useNostrVideos({
-    limit: 40,
+    limit: 60,
     hashtag,
     sortBy,
   });
+
+  const { shorts, longForm } = useMemo(() => {
+    const shorts = videos.filter((v) => v.isShort);
+    const longForm = videos.filter((v) => !v.isShort);
+    return { shorts, longForm };
+  }, [videos]);
 
   const handleCategoryChange = (category: string) => {
     if (category === "All") {
@@ -107,9 +171,13 @@ const Index = () => {
 
           {!loading && !error && videos.length > 0 && (
             <>
+              {/* Shorts shelf */}
+              <ShortsShelf shorts={shorts} />
+
+              {/* Long-form videos */}
               <div className="flex items-center justify-between mb-4">
                 <p className="text-xs text-muted-foreground">
-                  {videos.length} videos from Nostr relays
+                  {longForm.length} videos from Nostr relays
                 </p>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center bg-secondary rounded-full p-0.5">
@@ -142,7 +210,7 @@ const Index = () => {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8">
-                {videos.map((video) => (
+                {longForm.map((video) => (
                   <VideoCard key={video.id} video={video} />
                 ))}
               </div>
