@@ -5,11 +5,11 @@ import RelayManager from "@/components/RelayManager";
 import CategoryBar from "@/components/CategoryBar";
 import VideoCard from "@/components/VideoCard";
 import ShortCard from "@/components/ShortCard";
-import { useNostrVideos } from "@/hooks/useNostrVideos";
+import { useNostrVideos, type TimePeriod } from "@/hooks/useNostrVideos";
 import { useRelayStore } from "@/hooks/useRelayStore";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame, Users } from "lucide-react";
+import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame, Users, Calendar, Trophy } from "lucide-react";
 import { getRandomLoadingMessage, getRandomEmptyMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
 
 const LoadingState = () => {
