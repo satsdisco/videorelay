@@ -160,6 +160,7 @@ const Index = () => {
 
   const { shorts, longForm } = useMemo(() => {
     let filtered = videos;
+    // Client-side filter as fallback (NIP-50 search also runs relay-side)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = videos.filter(
