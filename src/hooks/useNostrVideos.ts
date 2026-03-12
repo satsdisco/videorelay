@@ -173,7 +173,8 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
 
       const deduped = dedupeVideos(parsed);
 
-      await fetchZapCounts(deduped);
+      // Cache for instant Watch page loads
+      cacheVideos(deduped);
 
       // Track oldest for pagination
       if (deduped.length > 0) {
@@ -183,7 +184,13 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
         setHasMore(false);
       }
 
+      // Show videos immediately, fetch zap counts in background
       setVideos(sortVideos(deduped));
+
+      // Deferred zap count fetch — doesn't block rendering
+      fetchZapCounts(deduped).then(() => {
+        setVideos(prev => sortVideos([...prev]));
+      });
     } catch (err) {
       console.error("Error fetching video events:", err);
       setError("Failed to fetch videos from relays");
