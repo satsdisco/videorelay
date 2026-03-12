@@ -45,6 +45,7 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
     hashtag,
     sortBy = "recent",
     search,
+    timePeriod = "all",
   } = options;
 
   const [videos, setVideos] = useState<ParsedVideo[]>([]);
