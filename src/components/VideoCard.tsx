@@ -31,7 +31,8 @@ const VideoCard = ({ video }: VideoCardProps) => {
   const navigate = useNavigate();
   const displayName = profile?.displayName || profile?.name || video.pubkey.slice(0, 12) + "...";
   const avatar = profile?.picture;
-  const thumbnail = video.thumbnail || getFallbackThumb(video.id);
+  const generatedThumb = useVideoThumbnail(video.videoUrl, video.thumbnail || undefined);
+  const thumbnail = generatedThumb || getFallbackThumb(video.id);
 
   return (
     <div
