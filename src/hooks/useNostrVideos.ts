@@ -3,6 +3,8 @@ import { getPool, DEFAULT_RELAYS, parseVideoEvent, type ParsedVideo, VIDEO_KIND,
 
 import type { Filter, Event } from "nostr-tools";
 
+export type TimePeriod = "today" | "week" | "month" | "year" | "all";
+
 interface UseNostrVideosOptions {
   relays?: string[];
   limit?: number;
@@ -10,6 +12,19 @@ interface UseNostrVideosOptions {
   hashtag?: string;
   sortBy?: "recent" | "popular";
   search?: string;
+  timePeriod?: TimePeriod;
+}
+
+function getTimePeriodSince(period: TimePeriod): number | undefined {
+  if (period === "all") return undefined;
+  const now = Math.floor(Date.now() / 1000);
+  const day = 86400;
+  switch (period) {
+    case "today": return now - day;
+    case "week": return now - 7 * day;
+    case "month": return now - 30 * day;
+    case "year": return now - 365 * day;
+  }
 }
 
 // Deduplicate videos by id
