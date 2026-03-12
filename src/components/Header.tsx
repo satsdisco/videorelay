@@ -1,4 +1,5 @@
-import { Search, Upload, Bell, Zap, Menu, LogIn } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Search, Upload, Bell, Menu, LogIn, LogOut, User, Copy, Check } from "lucide-react";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import logo from "@/assets/logo.png";
 
