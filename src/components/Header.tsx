@@ -8,10 +8,11 @@ interface HeaderProps {
   onSearch?: (query: string) => void;
 }
 
-const Header = ({ onToggleSidebar }: HeaderProps) => {
+const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
   const { isLoggedIn, pubkey, profile, isExtensionAvailable, login, logout } = useNostrAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLogin = async () => {
