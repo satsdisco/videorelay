@@ -35,10 +35,12 @@ const LoadingState = () => {
 const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
+  const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
 
   const { videos, loading, error, refetch } = useNostrVideos({
     limit: 40,
     hashtag,
+    sortBy,
   });
 
   const handleCategoryChange = (category: string) => {
