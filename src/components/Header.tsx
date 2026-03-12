@@ -5,6 +5,7 @@ import logo from "@/assets/logo.png";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
+  onSearch?: (query: string) => void;
 }
 
 const Header = ({ onToggleSidebar }: HeaderProps) => {
