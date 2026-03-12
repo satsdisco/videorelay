@@ -169,6 +169,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
     setActiveView(view);
     if (view === "trending" || view === "zapped") {
       setSortBy("popular");
+      if (timePeriod === "all" && view === "trending") setTimePeriod("week");
     } else if (view === "home") {
       setSortBy("recent");
     }
