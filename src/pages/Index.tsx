@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Header from "@/components/Header";
 import Sidebar, { type SidebarView } from "@/components/Sidebar";
 import RelayManager from "@/components/RelayManager";
@@ -104,9 +104,22 @@ const Index = () => {
   const { activeRelays } = useRelayStore();
   const { pubkey } = useNostrAuth();
 
+  // Debounced search for relay queries
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Map sidebar view to fetch options
   const fetchOptions = useMemo(() => {
-    const base = { relays: activeRelays, limit: 60, hashtag, sortBy: sortBy as "recent" | "popular" };
+    const base = {
+      relays: activeRelays,
+      limit: 100,
+      hashtag,
+      sortBy: sortBy as "recent" | "popular",
+      search: debouncedSearch || undefined,
+    };
 
     switch (activeView) {
       case "trending":
@@ -118,9 +131,22 @@ const Index = () => {
       default:
         return base;
     }
-  }, [activeView, activeRelays, hashtag, sortBy, pubkey]);
+  }, [activeView, activeRelays, hashtag, sortBy, pubkey, debouncedSearch]);
 
-  const { videos, loading, error, refetch } = useNostrVideos(fetchOptions);
+  const { videos, loading, loadingMore, error, hasMore, refetch, loadMore } = useNostrVideos(fetchOptions);
+
+  // Infinite scroll
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (!node) return;
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+        loadMore();
+      }
+    }, { rootMargin: "400px" });
+    observerRef.current.observe(node);
+  }, [hasMore, loadingMore, loading, loadMore]);
 
   // Handle sidebar view changes
   const handleViewChange = (view: SidebarView) => {
@@ -134,6 +160,7 @@ const Index = () => {
 
   const { shorts, longForm } = useMemo(() => {
     let filtered = videos;
+    // Client-side filter as fallback (NIP-50 search also runs relay-side)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = videos.filter(
@@ -285,6 +312,21 @@ const Index = () => {
                   <VideoCard key={video.id} video={video} />
                 ))}
               </div>
+
+              {/* Infinite scroll trigger */}
+              {hasMore && (
+                <div ref={loadMoreRef} className="flex items-center justify-center py-8">
+                  {loadingMore && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                      <span className="text-sm">Loading more videos...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!hasMore && longForm.length > 0 && (
+                <p className="text-center text-xs text-muted-foreground py-6">You've reached the end — {longForm.length} videos loaded</p>
+              )}
 
               {/* Shorts — tucked at the bottom as a bonus section */}
               {shorts.length > 0 && (
