@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import Header from "@/components/Header";
-import Sidebar from "@/components/Sidebar";
+import Sidebar, { type SidebarView } from "@/components/Sidebar";
+import RelayManager from "@/components/RelayManager";
 import CategoryBar from "@/components/CategoryBar";
 import VideoCard from "@/components/VideoCard";
 import ShortCard from "@/components/ShortCard";
 import { useNostrVideos } from "@/hooks/useNostrVideos";
-import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame } from "lucide-react";
+import { useRelayStore } from "@/hooks/useRelayStore";
+import { useNostrAuth } from "@/hooks/useNostrAuth";
+import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame, Users } from "lucide-react";
 import { getRandomLoadingMessage, getRandomEmptyMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
 
 import thumb1 from "@/assets/thumb-1.jpg";
@@ -95,12 +98,39 @@ const Index = () => {
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeView, setActiveView] = useState<SidebarView>("home");
+  const [relayManagerOpen, setRelayManagerOpen] = useState(false);
 
-  const { videos, loading, error, refetch } = useNostrVideos({
-    limit: 60,
-    hashtag,
-    sortBy,
-  });
+  const { activeRelays } = useRelayStore();
+  const { pubkey } = useNostrAuth();
+
+  // Map sidebar view to fetch options
+  const fetchOptions = useMemo(() => {
+    const base = { relays: activeRelays, limit: 60, hashtag, sortBy: sortBy as "recent" | "popular" };
+
+    switch (activeView) {
+      case "trending":
+        return { ...base, sortBy: "popular" as const };
+      case "zapped":
+        return { ...base, sortBy: "popular" as const };
+      case "following":
+        return { ...base, authors: pubkey ? [pubkey] : undefined };
+      default:
+        return base;
+    }
+  }, [activeView, activeRelays, hashtag, sortBy, pubkey]);
+
+  const { videos, loading, error, refetch } = useNostrVideos(fetchOptions);
+
+  // Handle sidebar view changes
+  const handleViewChange = (view: SidebarView) => {
+    setActiveView(view);
+    if (view === "trending" || view === "zapped") {
+      setSortBy("popular");
+    } else if (view === "home") {
+      setSortBy("recent");
+    }
+  };
 
   const { shorts, longForm } = useMemo(() => {
     let filtered = videos;
@@ -126,10 +156,24 @@ const Index = () => {
     }
   };
 
+  const viewTitle = {
+    home: null,
+    trending: "Trending",
+    zapped: "Most Zapped",
+    following: "Following",
+    live: "Live",
+  }[activeView];
+
   return (
     <div className="min-h-screen bg-background">
       <Header onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} onSearch={setSearchQuery} />
-      <Sidebar collapsed={sidebarCollapsed} />
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        activeView={activeView}
+        onChangeView={handleViewChange}
+        onOpenRelays={() => setRelayManagerOpen(true)}
+      />
+      <RelayManager open={relayManagerOpen} onClose={() => setRelayManagerOpen(false)} />
 
       <main
         className={`pt-14 transition-all duration-300 ${
@@ -141,6 +185,25 @@ const Index = () => {
         </div>
 
         <div className="px-6 pb-8">
+          {/* View header */}
+          {viewTitle && (
+            <div className="flex items-center gap-2 mb-4">
+              {activeView === "following" && <Users className="w-5 h-5 text-primary" />}
+              {activeView === "trending" && <TrendingUp className="w-5 h-5 text-primary" />}
+              {activeView === "zapped" && <Zap className="w-5 h-5 text-primary" />}
+              <h1 className="text-xl font-bold text-foreground">{viewTitle}</h1>
+            </div>
+          )}
+
+          {/* Following requires login */}
+          {activeView === "following" && !pubkey && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Users className="w-10 h-10 text-muted-foreground mb-3" />
+              <p className="text-foreground font-medium mb-1">Sign in to see who you follow</p>
+              <p className="text-muted-foreground text-sm">Connect your Nostr extension to view content from people you follow.</p>
+            </div>
+          )}
+
           {loading && <LoadingState />}
 
           {error && (
@@ -158,7 +221,7 @@ const Index = () => {
             </div>
           )}
 
-          {!loading && !error && videos.length === 0 && (
+          {!loading && !error && videos.length === 0 && !(activeView === "following" && !pubkey) && (
             <div className="flex flex-col items-center justify-center py-20">
               <Zap className="w-10 h-10 text-primary/40 mb-3" />
               <p className="text-foreground font-medium mb-1">{getRandomEmptyMessage()}</p>
@@ -185,7 +248,7 @@ const Index = () => {
               {/* Long-form videos — the main content */}
               <div className="flex items-center justify-between mb-4">
                 <p className="text-xs text-muted-foreground">
-                  {longForm.length} videos from Nostr relays
+                  {longForm.length} videos from {activeRelays.length} relays
                 </p>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center bg-secondary rounded-full p-0.5">
