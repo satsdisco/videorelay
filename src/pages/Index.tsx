@@ -207,19 +207,8 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
         />
       )}
 
-      {/* Mobile bottom nav */}
-      <MobileNav
-        activeView={activeView}
-        onChangeView={handleViewChange}
-        onSearchOpen={() => setMobileSearchOpen(true)}
-      />
 
-      {/* Mobile search overlay */}
-      <MobileSearch
-        open={mobileSearchOpen}
-        onClose={() => setMobileSearchOpen(false)}
-        onSearch={setSearchQuery}
-      />
+
 
       <RelayManager open={relayManagerOpen} onClose={() => setRelayManagerOpen(false)} />
 
