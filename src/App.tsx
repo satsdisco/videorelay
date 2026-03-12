@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { NostrAuthProvider } from "@/hooks/useNostrAuth";
 import Index from "./pages/Index.tsx";
 import Watch from "./pages/Watch.tsx";
+import Channel from "./pages/Channel.tsx";
+import Upload from "./pages/Upload.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -20,6 +22,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/watch/:id" element={<Watch />} />
+            <Route path="/channel/:pubkey" element={<Channel />} />
+            <Route path="/upload" element={<Upload />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
