@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Zap, Share2, ExternalLink } from "lucide-react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo } from "@/lib/nostr";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
+import { getRandomLoadingMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
 
 import thumb1 from "@/assets/thumb-1.jpg";
 
