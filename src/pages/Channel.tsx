@@ -26,7 +26,7 @@ const Channel = () => {
   const totalZaps = useMemo(() => videos.reduce((sum, v) => sum + v.zapCount, 0), [videos]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
       {/* Top bar */}
       <div className="sticky top-0 z-50 flex items-center gap-3 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border">
         <button onClick={() => navigate("/")} className="p-2 rounded-lg hover:bg-secondary transition-colors">

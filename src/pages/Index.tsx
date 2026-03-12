@@ -1,8 +1,6 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, type Dispatch, type SetStateAction } from "react";
 import Header from "@/components/Header";
 import Sidebar, { type SidebarView } from "@/components/Sidebar";
-import MobileNav from "@/components/MobileNav";
-import MobileSearch from "@/components/MobileSearch";
 import RelayManager from "@/components/RelayManager";
 import CategoryBar from "@/components/CategoryBar";
 import VideoCard from "@/components/VideoCard";
@@ -95,15 +93,21 @@ const ShortsShelf = ({ shorts }: { shorts: import("@/lib/nostr").ParsedVideo[] }
   );
 };
 
-const Index = () => {
+interface IndexProps {
+  activeView: SidebarView;
+  setActiveView: Dispatch<SetStateAction<SidebarView>>;
+  mobileSearchOpen: boolean;
+  setMobileSearchOpen: Dispatch<SetStateAction<boolean>>;
+  searchQuery: string;
+  setSearchQuery: Dispatch<SetStateAction<string>>;
+}
+
+const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpen, searchQuery, setSearchQuery }: IndexProps) => {
   const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeView, setActiveView] = useState<SidebarView>("home");
   const [relayManagerOpen, setRelayManagerOpen] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   const { activeRelays } = useRelayStore();
   const { pubkey } = useNostrAuth();
@@ -203,19 +207,8 @@ const Index = () => {
         />
       )}
 
-      {/* Mobile bottom nav */}
-      <MobileNav
-        activeView={activeView}
-        onChangeView={handleViewChange}
-        onSearchOpen={() => setMobileSearchOpen(true)}
-      />
 
-      {/* Mobile search overlay */}
-      <MobileSearch
-        open={mobileSearchOpen}
-        onClose={() => setMobileSearchOpen(false)}
-        onSearch={setSearchQuery}
-      />
+
 
       <RelayManager open={relayManagerOpen} onClose={() => setRelayManagerOpen(false)} />
 
