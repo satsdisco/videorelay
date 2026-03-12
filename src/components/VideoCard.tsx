@@ -81,9 +81,13 @@ const VideoCard = ({ video }: VideoCardProps) => {
           <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
             {video.title}
           </h3>
-          <p className="text-xs text-muted-foreground mt-1 truncate">
-            {displayName}
-          </p>
+          <p
+            className="text-xs text-muted-foreground mt-1 truncate cursor-pointer hover:text-primary transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/channel/${video.pubkey}`);
+            }}
+          >
           <div className="flex items-center gap-3 mt-1">
             {video.zapCount > 0 && (
               <span className="flex items-center gap-1 text-xs text-zap font-medium">

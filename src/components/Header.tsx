@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, Upload, Bell, Menu, LogIn, LogOut, User, Copy, Check } from "lucide-react";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
+import { useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
 interface HeaderProps {
@@ -14,6 +15,7 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const handleLogin = async () => {
     try {
@@ -55,7 +57,7 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
         >
           <Menu className="w-5 h-5 text-foreground" />
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
           <img src={logo} alt="NostrTube" className="w-7 h-7" />
           <span className="text-lg font-bold tracking-tight text-foreground">
             Nostr<span className="text-primary">Tube</span>
@@ -75,7 +77,7 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
                 onSearch(searchQuery);
               }
             }}
-            placeholder="Search videos, creators, relays..."
+            placeholder="Search videos, creators, tags..."
             className="flex-1 bg-transparent px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
           />
           <button
@@ -95,7 +97,11 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
 
         {isLoggedIn ? (
           <>
-            <button className="p-2 rounded-lg hover:bg-secondary transition-colors group">
+            <button
+              onClick={() => navigate("/upload")}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors group"
+              title="Publish a video"
+            >
               <Upload className="w-5 h-5 text-foreground group-hover:text-primary transition-colors" />
             </button>
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors relative">
@@ -147,11 +153,24 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
                   {/* Menu items */}
                   <div className="p-1">
                     <button
-                      onClick={() => setDropdownOpen(false)}
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        navigate(`/channel/${pubkey}`);
+                      }}
                       className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
                     >
                       <User className="w-4 h-4 text-muted-foreground" />
                       Your Channel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        navigate("/upload");
+                      }}
+                      className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+                    >
+                      <Upload className="w-4 h-4 text-muted-foreground" />
+                      Publish Video
                     </button>
                     <button
                       onClick={() => {
