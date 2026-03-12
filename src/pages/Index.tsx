@@ -293,40 +293,62 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
 
           {!loading && !error && videos.length > 0 && (
             <>
-              {/* Sort controls */}
-              <div className="flex items-center justify-between mb-3 md:mb-4">
-                <p className="text-xs text-muted-foreground hidden sm:block">
-                  {longForm.length} videos from {activeRelays.length} relays
-                </p>
-                <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                  <div className="flex items-center bg-secondary rounded-full p-0.5">
+              {/* Sort & time controls */}
+              <div className="flex flex-col gap-2 mb-3 md:mb-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground hidden sm:block">
+                    {longForm.length} videos from {activeRelays.length} relays
+                  </p>
+                  <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                    <div className="flex items-center bg-secondary rounded-full p-0.5">
+                      <button
+                        onClick={() => setSortBy("recent")}
+                        className={`flex items-center gap-1 px-3 py-1.5 md:py-1 rounded-full text-xs font-medium transition-all ${
+                          sortBy === "recent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Clock className="w-3 h-3" />
+                        Recent
+                      </button>
+                      <button
+                        onClick={() => setSortBy("popular")}
+                        className={`flex items-center gap-1 px-3 py-1.5 md:py-1 rounded-full text-xs font-medium transition-all ${
+                          sortBy === "popular" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <TrendingUp className="w-3 h-3" />
+                        Popular
+                      </button>
+                    </div>
                     <button
-                      onClick={() => setSortBy("recent")}
-                      className={`flex items-center gap-1 px-3 py-1.5 md:py-1 rounded-full text-xs font-medium transition-all ${
-                        sortBy === "recent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                      }`}
+                      onClick={refetch}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
                     >
-                      <Clock className="w-3 h-3" />
-                      Recent
-                    </button>
-                    <button
-                      onClick={() => setSortBy("popular")}
-                      className={`flex items-center gap-1 px-3 py-1.5 md:py-1 rounded-full text-xs font-medium transition-all ${
-                        sortBy === "popular" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <TrendingUp className="w-3 h-3" />
-                      Popular
+                      <RefreshCw className="w-3 h-3" />
+                      Refresh
                     </button>
                   </div>
-                  <button
-                    onClick={refetch}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    Refresh
-                  </button>
                 </div>
+
+                {/* Time period filter */}
+                {(sortBy === "popular" || activeView === "trending" || activeView === "zapped") && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                    <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    {timePeriodLabels.map((tp) => (
+                      <button
+                        key={tp.value}
+                        onClick={() => setTimePeriod(tp.value)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                          timePeriod === tp.value
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        {tp.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Video grid — 1 col mobile, 2 col sm, 3 col lg, 4 col xl */}
