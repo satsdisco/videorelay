@@ -94,6 +94,7 @@ const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { videos, loading, error, refetch } = useNostrVideos({
     limit: 60,
@@ -102,10 +103,20 @@ const Index = () => {
   });
 
   const { shorts, longForm } = useMemo(() => {
-    const shorts = videos.filter((v) => v.isShort);
-    const longForm = videos.filter((v) => !v.isShort);
+    let filtered = videos;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = videos.filter(
+        (v) =>
+          v.title.toLowerCase().includes(q) ||
+          v.summary.toLowerCase().includes(q) ||
+          v.tags.some((t) => t.toLowerCase().includes(q))
+      );
+    }
+    const shorts = filtered.filter((v) => v.isShort);
+    const longForm = filtered.filter((v) => !v.isShort);
     return { shorts, longForm };
-  }, [videos]);
+  }, [videos, searchQuery]);
 
   const handleCategoryChange = (category: string) => {
     if (category === "All") {
@@ -117,7 +128,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      <Header onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} onSearch={setSearchQuery} />
       <Sidebar collapsed={sidebarCollapsed} />
 
       <main
