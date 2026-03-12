@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Header from "@/components/Header";
 import Sidebar, { type SidebarView } from "@/components/Sidebar";
 import RelayManager from "@/components/RelayManager";
