@@ -1,5 +1,6 @@
 import { Zap, Eye, Clock } from "lucide-react";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
+import { useVideoThumbnail } from "@/hooks/useVideoThumbnail";
 import { timeAgo } from "@/lib/nostr";
 import type { ParsedVideo } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +31,8 @@ const VideoCard = ({ video }: VideoCardProps) => {
   const navigate = useNavigate();
   const displayName = profile?.displayName || profile?.name || video.pubkey.slice(0, 12) + "...";
   const avatar = profile?.picture;
-  const thumbnail = video.thumbnail || getFallbackThumb(video.id);
+  const generatedThumb = useVideoThumbnail(video.videoUrl, video.thumbnail || undefined);
+  const thumbnail = generatedThumb || getFallbackThumb(video.id);
 
   return (
     <div
