@@ -1,6 +1,6 @@
 import { SimplePool, type Filter, type Event } from "nostr-tools";
 
-// Default relays known for video content
+// Default relays — prioritizing video-heavy and popular relays
 export const DEFAULT_RELAYS = [
   "wss://relay.damus.io",
   "wss://relay.nostr.band",
@@ -8,6 +8,9 @@ export const DEFAULT_RELAYS = [
   "wss://relay.snort.social",
   "wss://nostr.wine",
   "wss://relay.primal.net",
+  "wss://nostr-pub.wellorder.net",
+  "wss://relay.nostr.bg",
+  "wss://nostr.fmt.wiz.biz",
 ];
 
 // Video event kinds per NIP-71

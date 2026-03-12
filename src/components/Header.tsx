@@ -1,4 +1,5 @@
-import { Search, Upload, Bell, Zap, Menu, LogIn } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Search, Upload, Bell, Menu, LogIn, LogOut, User, Copy, Check } from "lucide-react";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import logo from "@/assets/logo.png";
 
@@ -7,7 +8,10 @@ interface HeaderProps {
 }
 
 const Header = ({ onToggleSidebar }: HeaderProps) => {
-  const { isLoggedIn, profile, isExtensionAvailable, login, logout } = useNostrAuth();
+  const { isLoggedIn, pubkey, profile, isExtensionAvailable, login, logout } = useNostrAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLogin = async () => {
     try {
@@ -17,7 +21,26 @@ const Header = ({ onToggleSidebar }: HeaderProps) => {
     }
   };
 
-  const displayName = profile?.displayName || profile?.name || profile?.pubkey?.slice(0, 8);
+  const copyPubkey = () => {
+    if (pubkey) {
+      navigator.clipboard.writeText(pubkey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const displayName = profile?.displayName || profile?.name || pubkey?.slice(0, 8);
   const avatar = profile?.picture;
 
   return (
@@ -66,17 +89,72 @@ const Header = ({ onToggleSidebar }: HeaderProps) => {
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors relative">
               <Bell className="w-5 h-5 text-foreground" />
             </button>
-            <button
-              onClick={logout}
-              className="ml-2 w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-primary to-zap flex items-center justify-center text-xs font-bold text-primary-foreground"
-              title={`Logged in as ${displayName}`}
-            >
-              {avatar ? (
-                <img src={avatar} alt="" className="w-full h-full object-cover" />
-              ) : (
-                displayName?.[0]?.toUpperCase() || "?"
+
+            {/* User dropdown */}
+            <div className="relative ml-2" ref={dropdownRef}>
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-primary-foreground ring-2 ring-transparent hover:ring-primary/50 transition-all"
+                title={`Logged in as ${displayName}`}
+              >
+                {avatar ? (
+                  <img src={avatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  displayName?.[0]?.toUpperCase() || "?"
+                )}
+              </button>
+
+              {dropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-background border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                  {/* Profile header */}
+                  <div className="p-4 border-b border-border bg-secondary/30">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-bold text-primary-foreground shrink-0">
+                        {avatar ? (
+                          <img src={avatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          displayName?.[0]?.toUpperCase() || "?"
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>
+                        {profile?.nip05 && (
+                          <p className="text-xs text-primary truncate">{profile.nip05}</p>
+                        )}
+                        <button
+                          onClick={copyPubkey}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+                        >
+                          {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                          {copied ? "Copied!" : `${pubkey?.slice(0, 12)}...${pubkey?.slice(-4)}`}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu items */}
+                  <div className="p-1">
+                    <button
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+                    >
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      Your Channel
+                    </button>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setDropdownOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
           </>
         ) : (
           <button
