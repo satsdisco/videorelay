@@ -102,11 +102,20 @@ interface IndexProps {
   setSearchQuery: Dispatch<SetStateAction<string>>;
 }
 
+const timePeriodLabels: { value: TimePeriod; label: string; icon?: typeof Calendar }[] = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "This Week" },
+  { value: "month", label: "This Month" },
+  { value: "year", label: "This Year" },
+  { value: "all", label: "All Time" },
+];
+
 const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpen, searchQuery, setSearchQuery }: IndexProps) => {
   const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
   const [relayManagerOpen, setRelayManagerOpen] = useState(false);
 
   const { activeRelays } = useRelayStore();
@@ -126,11 +135,12 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
       hashtag,
       sortBy: sortBy as "recent" | "popular",
       search: debouncedSearch || undefined,
+      timePeriod,
     };
 
     switch (activeView) {
       case "trending":
-        return { ...base, sortBy: "popular" as const };
+        return { ...base, sortBy: "popular" as const, timePeriod: timePeriod === "all" ? "week" as const : timePeriod };
       case "zapped":
         return { ...base, sortBy: "popular" as const };
       case "following":
@@ -138,7 +148,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
       default:
         return base;
     }
-  }, [activeView, activeRelays, hashtag, sortBy, pubkey, debouncedSearch]);
+  }, [activeView, activeRelays, hashtag, sortBy, pubkey, debouncedSearch, timePeriod]);
 
   const { videos, loading, loadingMore, error, hasMore, refetch, loadMore } = useNostrVideos(fetchOptions);
 
