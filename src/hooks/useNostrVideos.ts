@@ -80,12 +80,17 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
       (filter as any).search = search.trim();
     }
 
+    const sincePeriod = getTimePeriodSince(timePeriod);
+    if (sincePeriod) {
+      filter.since = sincePeriod;
+    }
+
     if (until) {
       filter.until = until;
     }
 
     return filter;
-  }, [limit, stableAuthors, hashtag, search]);
+  }, [limit, stableAuthors, hashtag, search, timePeriod]);
 
   const fetchZapCounts = useCallback(async (parsed: ParsedVideo[]) => {
     if (parsed.length === 0) return;
