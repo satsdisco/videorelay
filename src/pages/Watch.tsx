@@ -1,9 +1,12 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Zap, Share2, ExternalLink, Copy, Check } from "lucide-react";
+import { ArrowLeft, Zap, Share2, ExternalLink, UserPlus, UserCheck, Loader2 } from "lucide-react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo } from "@/lib/nostr";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
+import { useNostrFollow } from "@/hooks/useNostrFollow";
+import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { getRandomLoadingMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
+import VideoPlayer from "@/components/VideoPlayer";
 import VideoComments from "@/components/VideoComments";
 import RelatedVideos from "@/components/RelatedVideos";
 
@@ -19,25 +22,19 @@ const Watch = () => {
   const [showZapModal, setShowZapModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const { isLoggedIn, pubkey: myPubkey } = useNostrAuth();
+
   useEffect(() => {
     if (!id) return;
-
     const fetchVideo = async () => {
       setLoading(true);
       try {
         const pool = getPool();
-        const events = await pool.querySync(DEFAULT_RELAYS, {
-          ids: [id],
-          limit: 1,
-        });
-
+        const events = await pool.querySync(DEFAULT_RELAYS, { ids: [id], limit: 1 });
         if (events.length > 0) {
           const parsed = parseVideoEvent(events[0]);
-          if (parsed) {
-            setVideo(parsed);
-          } else {
-            setError("Could not parse video event");
-          }
+          if (parsed) setVideo(parsed);
+          else setError("Could not parse video event");
         } else {
           setError("Video not found on relays");
         }
@@ -47,37 +44,29 @@ const Watch = () => {
         setLoading(false);
       }
     };
-
     fetchVideo();
   }, [id]);
 
   const { profile } = useNostrProfile(video?.pubkey ?? null);
+  const { isFollowing, loading: followLoading, toggleFollow } = useNostrFollow(video?.pubkey ?? null);
   const displayName = profile?.displayName || profile?.name || video?.pubkey?.slice(0, 12) + "...";
+  const isOwnChannel = myPubkey && video?.pubkey === myPubkey;
 
   const handleShare = async () => {
     const url = window.location.href;
-    // Use native share on mobile if available
     if (navigator.share) {
-      try {
-        await navigator.share({ title: video?.title, url });
-        return;
-      } catch {
-        // fallback to clipboard
-      }
+      try { await navigator.share({ title: video?.title, url }); return; } catch {}
     }
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback
-    }
+    } catch {}
   };
 
   const handleZap = async (amount: number) => {
     setShowZapModal(false);
     if (!video) return;
-
     try {
       if ((window as any).webln) {
         await (window as any).webln.enable();
@@ -109,10 +98,7 @@ const Watch = () => {
         <div className="text-center max-w-md">
           <p className="text-foreground font-medium mb-2">Well, that didn't work.</p>
           <p className="text-muted-foreground text-sm mb-4">{getRandomErrorMessage()}</p>
-          <button
-            onClick={() => navigate("/")}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-          >
+          <button onClick={() => navigate("/")} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity">
             Back to Home
           </button>
         </div>
@@ -124,10 +110,7 @@ const Watch = () => {
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       {/* Top bar */}
       <div className="sticky top-0 z-50 flex items-center gap-3 px-3 md:px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border">
-        <button
-          onClick={() => navigate("/")}
-          className="p-2 rounded-lg hover:bg-secondary transition-colors"
-        >
+        <button onClick={() => navigate("/")} className="p-2 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
         <h1 className="text-sm font-medium text-foreground truncate">{video.title}</h1>
@@ -136,49 +119,62 @@ const Watch = () => {
       <div className="flex flex-col lg:flex-row gap-4 md:gap-6 max-w-[1400px] mx-auto px-0 md:px-4 py-0 md:py-6">
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          {/* Video Player — edge-to-edge on mobile */}
-          <div className="relative aspect-video bg-secondary md:rounded-xl overflow-hidden mb-4 md:mb-6">
-            <video
+          {/* Custom Video Player */}
+          <div className="mb-4 md:mb-6">
+            <VideoPlayer
               src={video.videoUrl}
-              controls
-              autoPlay
-              playsInline
-              className="w-full h-full"
               poster={video.thumbnail || thumb1}
-            >
-              Your browser does not support the video tag.
-            </video>
+            />
           </div>
 
           {/* Video Info */}
           <div className="px-3 md:px-0 mb-4 md:mb-6">
             <h2 className="text-base md:text-xl font-bold text-foreground mb-2">{video.title}</h2>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              {/* Creator */}
-              <div
-                className="flex items-center gap-3 cursor-pointer"
-                onClick={() => navigate(`/channel/${video.pubkey}`)}
-              >
-                {profile?.picture ? (
-                  <img
-                    src={profile.picture}
-                    alt={displayName}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/80 to-accent flex items-center justify-center text-sm font-bold text-primary-foreground">
-                    {displayName[0]?.toUpperCase() || "?"}
+              {/* Creator + Follow */}
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex items-center gap-3 cursor-pointer"
+                  onClick={() => navigate(`/channel/${video.pubkey}`)}
+                >
+                  {profile?.picture ? (
+                    <img src={profile.picture} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/80 to-accent flex items-center justify-center text-sm font-bold text-primary-foreground">
+                      {displayName[0]?.toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{displayName}</p>
+                    <p className="text-xs text-muted-foreground">{timeAgo(video.publishedAt)}</p>
                   </div>
-                )}
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{displayName}</p>
-                  <p className="text-xs text-muted-foreground">{timeAgo(video.publishedAt)}</p>
                 </div>
+
+                {/* Follow button */}
+                {isLoggedIn && !isOwnChannel && (
+                  <button
+                    onClick={toggleFollow}
+                    disabled={followLoading}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      isFollowing
+                        ? "bg-secondary text-foreground hover:bg-destructive/20 hover:text-destructive"
+                        : "bg-primary text-primary-foreground hover:opacity-90"
+                    }`}
+                  >
+                    {followLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : isFollowing ? (
+                      <UserCheck className="w-3.5 h-3.5" />
+                    ) : (
+                      <UserPlus className="w-3.5 h-3.5" />
+                    )}
+                    {isFollowing ? "Following" : "Follow"}
+                  </button>
+                )}
               </div>
 
-              {/* Action buttons — horizontally scrollable on mobile */}
+              {/* Action buttons */}
               <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
-                {/* Zap button */}
                 <div className="relative shrink-0">
                   <button
                     onClick={() => setShowZapModal(!showZapModal)}
@@ -189,7 +185,6 @@ const Watch = () => {
                       {zapAmount ? `⚡ ${zapAmount} sats!` : "Zap"}
                     </span>
                   </button>
-
                   {showZapModal && (
                     <div className="absolute top-full mt-2 right-0 md:right-0 left-0 md:left-auto bg-background border border-border rounded-xl shadow-xl p-3 z-50 w-56">
                       <p className="text-xs text-muted-foreground mb-2">Send sats ⚡</p>
@@ -207,20 +202,11 @@ const Watch = () => {
                     </div>
                   )}
                 </div>
-
-                <button
-                  onClick={handleShare}
-                  className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-full hover:bg-muted transition-colors shrink-0"
-                >
+                <button onClick={handleShare} className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-full hover:bg-muted transition-colors shrink-0">
                   <Share2 className="w-4 h-4 text-foreground" />
                   <span className="text-sm text-foreground">{copied ? "Copied!" : "Share"}</span>
                 </button>
-                <a
-                  href={video.videoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-full hover:bg-muted transition-colors shrink-0"
-                >
+                <a href={video.videoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-full hover:bg-muted transition-colors shrink-0">
                   <ExternalLink className="w-4 h-4 text-foreground" />
                   <span className="text-sm text-foreground">Source</span>
                 </a>
@@ -256,7 +242,7 @@ const Watch = () => {
           </div>
         </div>
 
-        {/* Sidebar — Related Videos (below on mobile) */}
+        {/* Sidebar */}
         <div className="w-full lg:w-[360px] shrink-0 px-3 md:px-0">
           <RelatedVideos currentVideoId={video.id} tags={video.tags} />
         </div>
