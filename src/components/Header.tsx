@@ -71,7 +71,10 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              onSearch?.(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && onSearch) {
                 onSearch(searchQuery);
