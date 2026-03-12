@@ -37,9 +37,11 @@ export interface ParsedVideo {
   thumbnail: string;
   videoUrl: string;
   duration: string;
+  durationSeconds: number;
   publishedAt: number;
   tags: string[];
   zapCount: number;
+  isShort: boolean;
   rawEvent: Event;
 }
 
