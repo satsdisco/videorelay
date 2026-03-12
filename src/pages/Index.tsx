@@ -258,7 +258,13 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
             </div>
           )}
 
-          {loading && <LoadingState />}
+          {loading && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 md:gap-x-4 gap-y-5 md:gap-y-8">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <VideoCardSkeleton key={i} />
+              ))}
+            </div>
+          )}
 
           {error && (
             <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4">
