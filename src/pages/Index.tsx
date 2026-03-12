@@ -33,7 +33,7 @@ const LoadingState = () => {
 };
 
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const Index = () => {
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
 
   const { videos, loading, error, refetch } = useNostrVideos({
