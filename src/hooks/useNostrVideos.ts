@@ -7,6 +7,7 @@ interface UseNostrVideosOptions {
   limit?: number;
   authors?: string[];
   hashtag?: string;
+  sortBy?: "recent" | "popular";
 }
 
 export function useNostrVideos(options: UseNostrVideosOptions = {}) {
@@ -15,6 +16,7 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
     limit = 50,
     authors,
     hashtag,
+    sortBy = "recent",
   } = options;
 
   const [videos, setVideos] = useState<ParsedVideo[]>([]);
@@ -45,8 +47,57 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
 
       const parsed = events
         .map(parseVideoEvent)
-        .filter((v): v is ParsedVideo => v !== null)
-        .sort((a, b) => b.publishedAt - a.publishedAt);
+        .filter((v): v is ParsedVideo => v !== null);
+
+      // Fetch zap counts for discovered videos
+      if (parsed.length > 0) {
+        try {
+          const videoIds = parsed.map((v) => v.id);
+          const zapFilter: Filter = {
+            kinds: [9735], // zap receipts
+            "#e": videoIds,
+            limit: 500,
+          };
+          const zapEvents = await pool.querySync(relays, zapFilter);
+
+          // Count zaps per video and extract amounts
+          const zapCounts = new Map<string, number>();
+          for (const zap of zapEvents) {
+            const eTag = zap.tags.find((t) => t[0] === "e");
+            if (eTag) {
+              const videoId = eTag[1];
+              // Try to extract bolt11 amount from description
+              let amount = 1; // default count
+              const bolt11Tag = zap.tags.find((t) => t[0] === "bolt11");
+              const descTag = zap.tags.find((t) => t[0] === "description");
+              if (descTag) {
+                try {
+                  const desc = JSON.parse(descTag[1]);
+                  const amountTag = desc.tags?.find((t: string[]) => t[0] === "amount");
+                  if (amountTag) {
+                    amount = Math.floor(parseInt(amountTag[1]) / 1000); // millisats to sats
+                  }
+                } catch {}
+              }
+              zapCounts.set(videoId, (zapCounts.get(videoId) || 0) + amount);
+            }
+          }
+
+          // Apply zap counts
+          for (const video of parsed) {
+            video.zapCount = zapCounts.get(video.id) || 0;
+          }
+        } catch (err) {
+          console.warn("Failed to fetch zap counts:", err);
+        }
+      }
+
+      // Sort
+      if (sortBy === "popular") {
+        parsed.sort((a, b) => b.zapCount - a.zapCount || b.publishedAt - a.publishedAt);
+      } else {
+        parsed.sort((a, b) => b.publishedAt - a.publishedAt);
+      }
 
       setVideos(parsed);
     } catch (err) {
@@ -55,7 +106,7 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [relays, limit, authors, hashtag]);
+  }, [relays, limit, authors, hashtag, sortBy]);
 
   useEffect(() => {
     fetchVideos();
