@@ -163,7 +163,7 @@ export function parseVideoEvent(event: Event): ParsedVideo | null {
   const isShortKind = event.kind === SHORT_VIDEO_KIND || event.kind === ADDRESSABLE_SHORT_KIND;
   const shortTags = new Set(["shorts", "short", "clip", "clips", "reel", "reels", "vertical"]);
   const hasShortTag = hashtags.some(t => shortTags.has(t.toLowerCase()));
-  const isShort = isShortKind || hasShortTag || (durationSecs > 0 && durationSecs <= 90);
+  const isShort = isShortKind || hasShortTag || (durationSecs > 0 && durationSecs <= 30);
 
   return {
     id: event.id,
@@ -217,6 +217,15 @@ export function timeAgo(timestamp: number): string {
   }
   const y = Math.floor(diff / 31536000);
   return `${y} year${y === 1 ? "" : "s"} ago`;
+}
+
+export function formatDate(timestamp: number): string {
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export function shortenNpub(pubkey: string): string {

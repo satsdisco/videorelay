@@ -1,6 +1,6 @@
 import { Zap, Clock, Eye } from "lucide-react";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
-import { timeAgo } from "@/lib/nostr";
+import { timeAgo, formatDate } from "@/lib/nostr";
 import type { ParsedVideo } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -115,9 +115,9 @@ const VideoCard = ({ video, cachedProfile }: VideoCardProps) => {
                 {video.zapCount.toLocaleString()} sats
               </span>
             )}
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground" title={formatDate(video.publishedAt)}>
               <Clock className="w-3 h-3" />
-              {timeAgo(video.publishedAt)}
+              {formatDate(video.publishedAt)} · {timeAgo(video.publishedAt)}
             </span>
             {video.tags.length > 0 && (
               <span className="text-xs text-primary/70 truncate">
