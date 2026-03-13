@@ -3,10 +3,11 @@ import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { timeAgo } from "@/lib/nostr";
 import type { ParsedVideo } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { getFallbackThumb } from "@/lib/fallbackThumb";
 import { hasWatched } from "@/lib/viewTracker";
+import { getCachedPoster, extractPoster } from "@/lib/posterCache";
 
 interface VideoCardProps {
   video: ParsedVideo;
@@ -22,8 +23,21 @@ const VideoCard = ({ video, cachedProfile }: VideoCardProps) => {
 
   const displayName = profile?.displayName || profile?.name || video.pubkey.slice(0, 12) + "...";
   const avatar = profile?.picture;
-  const thumbnail = video.thumbnail || getFallbackThumb(video.id);
   const watched = hasWatched(video.id);
+
+  // Try poster extraction for videos without thumbnails
+  const [posterUrl, setPosterUrl] = useState<string | null>(() => getCachedPoster(video.id));
+  const hasThumbnail = !!video.thumbnail;
+
+  useEffect(() => {
+    if (!hasThumbnail && !posterUrl) {
+      extractPoster(video.id, video.videoUrl).then(url => {
+        if (url) setPosterUrl(url);
+      });
+    }
+  }, [video.id, video.videoUrl, hasThumbnail, posterUrl]);
+
+  const thumbnail = video.thumbnail || posterUrl || getFallbackThumb(video.id);
 
   return (
     <div

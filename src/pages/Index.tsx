@@ -179,16 +179,33 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
   const refetch = isPopularView ? popularRefetch : relayRefetch;
 
   const videos = useMemo(() => {
+    let result: typeof popularVideos;
+
     if (isPopularView) {
-      // Popular views use the engagement-scored results directly
-      return popularVideos;
+      result = popularVideos;
+    } else {
+      // Home view merges relay results with background discovery
+      if (trendingVideos.length === 0) {
+        result = relayVideos;
+      } else {
+        const seen = new Set(relayVideos.map(v => v.id));
+        const extra = trendingVideos.filter(v => !seen.has(v.id));
+        result = [...relayVideos, ...extra];
+      }
     }
-    // Home view merges relay results with background discovery
-    if (trendingVideos.length === 0) return relayVideos;
-    const seen = new Set(relayVideos.map(v => v.id));
-    const extra = trendingVideos.filter(v => !seen.has(v.id));
-    return [...relayVideos, ...extra];
-  }, [isPopularView, popularVideos, relayVideos, trendingVideos]);
+
+    // Client-side hashtag filter (covers popular views where relay query doesn't filter)
+    if (hashtag) {
+      const tag = hashtag.toLowerCase();
+      result = result.filter(v =>
+        v.tags.some(t => t.toLowerCase() === tag) ||
+        v.title.toLowerCase().includes(tag) ||
+        v.summary.toLowerCase().includes(tag)
+      );
+    }
+
+    return result;
+  }, [isPopularView, popularVideos, relayVideos, trendingVideos, hashtag]);
 
   // Batch-fetch profiles for all visible videos
   const pubkeys = useMemo(() => [...new Set(videos.map(v => v.pubkey))], [videos]);
