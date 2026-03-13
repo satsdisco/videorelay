@@ -1,0 +1,16 @@
+{
+  "name": "VideoRelay",
+  "short_name": "VideoRelay",
+  "description": "Decentralized video on Nostr",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#a855f7",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

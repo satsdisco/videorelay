@@ -1,4 +1,4 @@
-import { Home, TrendingUp, Zap, Flame, Search } from "lucide-react";
+import { Home, TrendingUp, Zap, Flame, Radio, Users } from "lucide-react";
 import type { SidebarView } from "./Sidebar";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -8,11 +8,12 @@ interface MobileNavProps {
   onSearchOpen: () => void;
 }
 
-const navItems: { icon: typeof Home; label: string; view: SidebarView | "shorts" }[] = [
+const navItems: { icon: typeof Home; label: string; view: SidebarView | "shorts" | "live" }[] = [
   { icon: Home, label: "Home", view: "home" },
   { icon: TrendingUp, label: "Trending", view: "trending" },
   { icon: Flame, label: "Shorts", view: "shorts" },
-  { icon: Zap, label: "Zapped", view: "zapped" },
+  { icon: Radio, label: "Live", view: "live" },
+  { icon: Users, label: "Following", view: "following" },
 ];
 
 const MobileNav = ({ activeView, onChangeView, onSearchOpen }: MobileNavProps) => {
@@ -24,13 +25,18 @@ const MobileNav = ({ activeView, onChangeView, onSearchOpen }: MobileNavProps) =
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-md border-t border-border safe-area-bottom">
       <div className="flex items-center justify-around h-14">
         {navItems.map((item) => {
-          const isActive = item.view === "shorts" ? isShorts : (!isShorts && activeView === item.view);
+          const isRoute = item.view === "shorts" || item.view === "live";
+          const isActive = isRoute
+            ? location.pathname === `/${item.view}`
+            : (!location.pathname.match(/^\/(shorts|live)/) && activeView === item.view);
           return (
             <button
               key={item.view}
               onClick={() => {
                 if (item.view === "shorts") {
                   navigate("/shorts");
+                } else if (item.view === "live") {
+                  navigate("/live");
                 } else {
                   onChangeView(item.view as SidebarView);
                 }
@@ -39,7 +45,7 @@ const MobileNav = ({ activeView, onChangeView, onSearchOpen }: MobileNavProps) =
             >
               <item.icon
                 className={`w-5 h-5 ${isActive ? "text-primary" : "text-muted-foreground"}`}
-                fill={item.view === "zapped" && isActive ? "currentColor" : "none"}
+                fill={isActive && (item.view === "zapped" || item.view === "live") ? "currentColor" : "none"}
               />
               <span
                 className={`text-[10px] font-medium ${
@@ -51,13 +57,6 @@ const MobileNav = ({ activeView, onChangeView, onSearchOpen }: MobileNavProps) =
             </button>
           );
         })}
-        <button
-          onClick={onSearchOpen}
-          className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors"
-        >
-          <Search className="w-5 h-5 text-muted-foreground" />
-          <span className="text-[10px] font-medium text-muted-foreground">Search</span>
-        </button>
       </div>
     </nav>
   );
