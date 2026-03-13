@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Zap, Share2, MessageSquare, User } from "lucide-react";
-import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo, SHORT_VIDEO_KIND, ADDRESSABLE_SHORT_KIND, VIDEO_KIND, ADDRESSABLE_VIDEO_KIND } from "@/lib/nostr";
+import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo, ALL_VIDEO_KINDS } from "@/lib/nostr";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
 import type { Event } from "nostr-tools";
 
@@ -127,15 +127,31 @@ const Shorts = () => {
     const fetchShorts = async () => {
       try {
         const pool = getPool();
-        const events: Event[] = await pool.querySync(DEFAULT_RELAYS, {
-          kinds: [SHORT_VIDEO_KIND, ADDRESSABLE_SHORT_KIND, VIDEO_KIND, ADDRESSABLE_VIDEO_KIND],
-          limit: 50,
-        });
 
-        const parsed = events
+        // Multiple strategies to find shorts
+        const queries = [
+          // Direct short video kinds
+          pool.querySync(DEFAULT_RELAYS.slice(0, 5), {
+            kinds: ALL_VIDEO_KINDS as number[],
+            limit: 100,
+          }),
+          // Hashtag search for short-form content
+          pool.querySync(DEFAULT_RELAYS.slice(0, 3), {
+            kinds: ALL_VIDEO_KINDS as number[],
+            "#t": ["shorts", "short", "clip", "reel"],
+            limit: 50,
+          }),
+        ];
+
+        const results = await Promise.allSettled(queries);
+        const allEvents: Event[] = [];
+        for (const r of results) {
+          if (r.status === "fulfilled") allEvents.push(...r.value);
+        }
+
+        const parsed = allEvents
           .map(parseVideoEvent)
-          .filter((v): v is ParsedVideo => v !== null && v.isShort)
-          .sort((a, b) => b.publishedAt - a.publishedAt);
+          .filter((v): v is ParsedVideo => v !== null && v.isShort);
 
         // Dedupe
         const seen = new Set<string>();
@@ -144,6 +160,12 @@ const Shorts = () => {
           seen.add(v.id);
           return true;
         });
+
+        // Shuffle — different order every visit
+        for (let i = deduped.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [deduped[i], deduped[j]] = [deduped[j], deduped[i]];
+        }
 
         setShorts(deduped);
       } catch (err) {

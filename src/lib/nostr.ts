@@ -161,7 +161,9 @@ export function parseVideoEvent(event: Event): ParsedVideo | null {
 
   const durationSecs = parseInt(duration) || 0;
   const isShortKind = event.kind === SHORT_VIDEO_KIND || event.kind === ADDRESSABLE_SHORT_KIND;
-  const isShort = isShortKind || (durationSecs > 0 && durationSecs <= 60);
+  const shortTags = new Set(["shorts", "short", "clip", "clips", "reel", "reels", "vertical"]);
+  const hasShortTag = hashtags.some(t => shortTags.has(t.toLowerCase()));
+  const isShort = isShortKind || hasShortTag || (durationSecs > 0 && durationSecs <= 90);
 
   return {
     id: event.id,
