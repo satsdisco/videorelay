@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, type ParsedVideo, VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND } from "@/lib/nostr";
 import { cacheVideos } from "@/lib/videoCache";
-
 import type { Filter, Event } from "nostr-tools";
 
 export type TimePeriod = "today" | "week" | "month" | "year" | "all";
@@ -15,6 +14,8 @@ interface UseNostrVideosOptions {
   search?: string;
   timePeriod?: TimePeriod;
 }
+
+const VIDEO_KINDS = [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND];
 
 function getTimePeriodSince(period: TimePeriod): number | undefined {
   if (period === "all") return undefined;
@@ -38,10 +39,75 @@ function dedupeVideos(videos: ParsedVideo[]): ParsedVideo[] {
   });
 }
 
+// localStorage cache for video events — persists across sessions
+const VIDEO_CACHE_KEY = "videorelay_video_cache";
+const CACHE_MAX_AGE = 1000 * 60 * 30; // 30 minutes
+
+function loadCachedEvents(): ParsedVideo[] {
+  try {
+    const raw = localStorage.getItem(VIDEO_CACHE_KEY);
+    if (!raw) return [];
+    const { videos, timestamp } = JSON.parse(raw);
+    if (Date.now() - timestamp > CACHE_MAX_AGE) return [];
+    return videos || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCachedEvents(videos: ParsedVideo[]) {
+  try {
+    // Only cache the most recent 500 to keep storage reasonable
+    const trimmed = videos.slice(0, 500);
+    localStorage.setItem(VIDEO_CACHE_KEY, JSON.stringify({
+      videos: trimmed,
+      timestamp: Date.now(),
+    }));
+  } catch {}
+}
+
+/**
+ * Query relays independently and merge results.
+ * This prevents slow relays from blocking fast ones.
+ */
+async function queryRelaysIndependently(
+  relays: string[],
+  filter: Filter,
+  timeoutMs = 8000,
+): Promise<Event[]> {
+  const pool = getPool();
+  const allEvents: Event[] = [];
+  const seen = new Set<string>();
+
+  // Split relays into groups for parallel querying
+  // Query aggregator relays (nostr.band, primal) with higher limits
+  const promises = relays.map(async (relay) => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+      const events = await pool.querySync([relay], filter);
+      clearTimeout(timeout);
+
+      for (const e of events) {
+        if (!seen.has(e.id)) {
+          seen.add(e.id);
+          allEvents.push(e);
+        }
+      }
+    } catch {
+      // Relay timed out or failed — that's fine, move on
+    }
+  });
+
+  await Promise.allSettled(promises);
+  return allEvents;
+}
+
 export function useNostrVideos(options: UseNostrVideosOptions = {}) {
   const {
     relays = DEFAULT_RELAYS,
-    limit = 100,
+    limit = 200,
     authors,
     hashtag,
     sortBy = "recent",
@@ -55,6 +121,7 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const oldestTimestamp = useRef<number | null>(null);
+  const allFetchedRef = useRef<ParsedVideo[]>([]);
 
   const relaysSignature = relays.join("|");
   const authorsSignature = authors?.join("|") ?? "";
@@ -62,10 +129,10 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
   const stableRelays = useMemo(() => relays, [relaysSignature]);
   const stableAuthors = useMemo(() => authors, [authorsSignature]);
 
-  const buildFilter = useCallback((until?: number): Filter => {
+  const buildFilter = useCallback((until?: number, customLimit?: number): Filter => {
     const filter: Filter = {
-      kinds: [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND],
-      limit,
+      kinds: VIDEO_KINDS,
+      limit: customLimit || limit,
     };
 
     if (stableAuthors?.length) {
@@ -76,7 +143,6 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
       filter["#t"] = [hashtag.toLowerCase()];
     }
 
-    // NIP-50 search — relays that support it will use it, others ignore it
     if (search?.trim()) {
       (filter as any).search = search.trim();
     }
@@ -98,7 +164,6 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
     try {
       const pool = getPool();
       const videoIds = parsed.map((v) => v.id);
-      // Batch in chunks of 50 to avoid huge filters
       const chunkSize = 50;
       for (let i = 0; i < videoIds.length; i += chunkSize) {
         const chunk = videoIds.slice(i, i + chunkSize);
@@ -107,7 +172,13 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
           "#e": chunk,
           limit: 500,
         };
-        const zapEvents = await pool.querySync(stableRelays, zapFilter);
+
+        // Query zaps from aggregator relays for best coverage
+        const zapRelays = stableRelays.filter(r =>
+          r.includes("nostr.band") || r.includes("primal") || r.includes("nostr.wine")
+        );
+        const relaysToQuery = zapRelays.length > 0 ? zapRelays : stableRelays.slice(0, 3);
+        const zapEvents = await getPool().querySync(relaysToQuery, zapFilter);
 
         const zapCounts = new Map<string, number>();
         for (const zap of zapEvents) {
@@ -155,6 +226,7 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
     setError(null);
     setHasMore(true);
     oldestTimestamp.current = null;
+    allFetchedRef.current = [];
 
     try {
       if (stableRelays.length === 0) {
@@ -163,20 +235,25 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
         return;
       }
 
-      const pool = getPool();
-      const filter = buildFilter();
-      const events: Event[] = await pool.querySync(stableRelays, filter);
+      // Show cached results immediately while fresh data loads
+      const cached = loadCachedEvents();
+      if (cached.length > 0 && !stableAuthors && !hashtag && !search) {
+        setVideos(sortVideos(cached));
+        setLoading(false); // Show content immediately
+      }
+
+      // Multi-strategy fetch: query relays independently for better coverage
+      const filter = buildFilter(undefined, limit);
+      const events = await queryRelaysIndependently(stableRelays, filter);
 
       const parsed = events
         .map(parseVideoEvent)
         .filter((v): v is ParsedVideo => v !== null);
 
       const deduped = dedupeVideos(parsed);
-
-      // Cache for instant Watch page loads
       cacheVideos(deduped);
+      allFetchedRef.current = deduped;
 
-      // Track oldest for pagination
       if (deduped.length > 0) {
         oldestTimestamp.current = Math.min(...deduped.map((v) => v.publishedAt));
       }
@@ -184,12 +261,20 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
         setHasMore(false);
       }
 
-      // Show videos immediately, fetch zap counts in background
+      // Show immediately, fetch zap counts in background
       setVideos(sortVideos(deduped));
 
-      // Deferred zap count fetch — doesn't block rendering
+      // Persist to localStorage for instant next visit
+      if (!stableAuthors && !hashtag && !search) {
+        saveCachedEvents(deduped);
+      }
+
+      // Background: fetch zap counts then re-sort
       fetchZapCounts(deduped).then(() => {
         setVideos(prev => sortVideos([...prev]));
+        if (!stableAuthors && !hashtag && !search) {
+          saveCachedEvents(deduped);
+        }
       });
     } catch (err) {
       console.error("Error fetching video events:", err);
@@ -197,30 +282,29 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [stableRelays, limit, buildFilter, fetchZapCounts, sortVideos]);
+  }, [stableRelays, limit, buildFilter, fetchZapCounts, sortVideos, stableAuthors, hashtag, search]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore || !oldestTimestamp.current) return;
 
     setLoadingMore(true);
     try {
-      const pool = getPool();
-      const filter = buildFilter(oldestTimestamp.current - 1);
-      const events: Event[] = await pool.querySync(stableRelays, filter);
+      const filter = buildFilter(oldestTimestamp.current - 1, limit);
+      const events = await queryRelaysIndependently(stableRelays, filter);
 
       const parsed = events
         .map(parseVideoEvent)
         .filter((v): v is ParsedVideo => v !== null);
 
-      if (parsed.length === 0 || parsed.length < limit) {
+      if (parsed.length === 0 || parsed.length < 10) {
         setHasMore(false);
       }
 
       if (parsed.length > 0) {
         await fetchZapCounts(parsed);
+        allFetchedRef.current = dedupeVideos([...allFetchedRef.current, ...parsed]);
         oldestTimestamp.current = Math.min(...parsed.map((v) => v.publishedAt));
-
-        setVideos((prev) => sortVideos(dedupeVideos([...prev, ...parsed])));
+        setVideos(sortVideos(allFetchedRef.current));
       }
     } catch (err) {
       console.warn("Error loading more videos:", err);

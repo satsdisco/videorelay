@@ -7,6 +7,7 @@ import VideoCard from "@/components/VideoCard";
 import VideoCardSkeleton from "@/components/VideoCardSkeleton";
 import ShortCard from "@/components/ShortCard";
 import { useNostrVideos, type TimePeriod } from "@/hooks/useNostrVideos";
+import { useTrendingVideos } from "@/hooks/useTrendingVideos";
 import { useBatchProfiles } from "@/hooks/useNostrProfile";
 import { useRelayStore } from "@/hooks/useRelayStore";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
@@ -135,7 +136,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
   const fetchOptions = useMemo(() => {
     const base = {
       relays: activeRelays,
-      limit: 100,
+      limit: 200,
       hashtag,
       sortBy: sortBy as "recent" | "popular",
       search: debouncedSearch || undefined,
@@ -154,7 +155,20 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
     }
   }, [activeView, activeRelays, hashtag, sortBy, pubkey, followedPubkeys, debouncedSearch, timePeriod]);
 
-  const { videos, loading, loadingMore, error, hasMore, refetch, loadMore } = useNostrVideos(fetchOptions);
+  const { videos: relayVideos, loading, loadingMore, error, hasMore, refetch, loadMore } = useNostrVideos(fetchOptions);
+
+  // Supplementary discovery — runs once in background to find more content
+  const { trendingVideos } = useTrendingVideos({
+    enabled: activeView === "home" || activeView === "trending" || activeView === "zapped",
+  });
+
+  // Merge relay results with discovery results, deduped
+  const videos = useMemo(() => {
+    if (trendingVideos.length === 0) return relayVideos;
+    const seen = new Set(relayVideos.map(v => v.id));
+    const extra = trendingVideos.filter(v => !seen.has(v.id));
+    return [...relayVideos, ...extra];
+  }, [relayVideos, trendingVideos]);
 
   // Batch-fetch profiles for all visible videos
   const pubkeys = useMemo(() => [...new Set(videos.map(v => v.pubkey))], [videos]);

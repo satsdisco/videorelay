@@ -4,7 +4,7 @@ import { DEFAULT_RELAYS } from "@/lib/nostr";
 const STORAGE_KEY = "videorelay_relays";
 const OLD_STORAGE_KEY = "nostrtube_relays";
 const RELAY_VERSION_KEY = "videorelay_relay_version";
-const CURRENT_RELAY_VERSION = 2; // bump this when DEFAULT_RELAYS changes
+const CURRENT_RELAY_VERSION = 3; // bump this when DEFAULT_RELAYS changes
 
 export interface RelayEntry {
   url: string;
@@ -60,6 +60,7 @@ function isStaleRelay(url: string): boolean {
     "wss://nostr.mom",
     "wss://relay.mostr.pub",
     "wss://relay.nostrati.com",
+    "wss://relay.noswhere.com",
   ];
   return stale.includes(url);
 }

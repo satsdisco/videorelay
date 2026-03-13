@@ -17,7 +17,7 @@ const Channel = () => {
   const { videos, loading: videosLoading } = useNostrVideos({
     relays: activeRelays,
     authors: pubkey ? [pubkey] : undefined,
-    limit: 100,
+    limit: 200,
     sortBy,
   });
 
