@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Plus, RotateCcw, Globe, Wifi, WifiOff } from "lucide-react";
-import { useRelayStore, DEFAULT_RELAYS } from "@/hooks/useRelayStore";
+import { useRelayStore } from "@/hooks/useRelayStore";
+import { DEFAULT_RELAYS } from "@/lib/nostr";
 
 interface RelayManagerProps {
   open: boolean;

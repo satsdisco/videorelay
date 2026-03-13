@@ -1,23 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { DEFAULT_RELAYS } from "@/lib/nostr";
 
-const STORAGE_KEY = "nostrtube_relays";
-
-// Curated defaults — video-heavy and reliable relays
-export const DEFAULT_RELAYS = [
-  "wss://relay.damus.io",
-  "wss://relay.nostr.band",
-  "wss://nos.lol",
-  "wss://relay.snort.social",
-  "wss://nostr.wine",
-  "wss://relay.primal.net",
-  "wss://nostr-pub.wellorder.net",
-  "wss://nostr.fmt.wiz.biz",
-  "wss://relay.noswhere.com",
-  "wss://nostr.mom",
-  "wss://relay.mostr.pub",
-  "wss://offchain.pub",
-  "wss://relay.nostrati.com",
-];
+const STORAGE_KEY = "videorelay_relays";
+const OLD_STORAGE_KEY = "nostrtube_relays";
 
 export interface RelayEntry {
   url: string;
@@ -26,6 +11,13 @@ export interface RelayEntry {
 
 function loadRelays(): RelayEntry[] {
   try {
+    // Migrate from old key if it exists
+    const old = localStorage.getItem(OLD_STORAGE_KEY);
+    if (old) {
+      localStorage.setItem(STORAGE_KEY, old);
+      localStorage.removeItem(OLD_STORAGE_KEY);
+      return JSON.parse(old);
+    }
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}

@@ -54,8 +54,9 @@ const VideoComments = ({ videoId }: VideoCommentsProps) => {
     setLoading(true);
     try {
       const pool = getPool();
+      // Fetch both NIP-22 comments (kind 1111) and legacy kind 1 replies
       const events: Event[] = await pool.querySync(DEFAULT_RELAYS, {
-        kinds: [1],
+        kinds: [1111, 1],
         "#e": [videoId],
         limit: 50,
       });
@@ -86,10 +87,14 @@ const VideoComments = ({ videoId }: VideoCommentsProps) => {
     setPosting(true);
 
     try {
+      // NIP-22: kind 1111 comment with proper root marker
       const event = {
-        kind: 1,
+        kind: 1111,
         content: newComment.trim(),
-        tags: [["e", videoId]],
+        tags: [
+          ["e", videoId, "", "root"],
+          ["k", "34235"],
+        ],
         created_at: Math.floor(Date.now() / 1000),
       };
 

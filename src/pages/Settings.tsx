@@ -16,7 +16,8 @@ import {
   Zap,
   Monitor,
 } from "lucide-react";
-import { useRelayStore, DEFAULT_RELAYS } from "@/hooks/useRelayStore";
+import { useRelayStore } from "@/hooks/useRelayStore";
+import { DEFAULT_RELAYS } from "@/lib/nostr";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

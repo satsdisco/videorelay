@@ -7,6 +7,7 @@ import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { useNostrFollow } from "@/hooks/useNostrFollow";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { getRandomLoadingMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
+import { useZap } from "@/hooks/useZap";
 import VideoPlayer from "@/components/VideoPlayer";
 import VideoComments from "@/components/VideoComments";
 import RelatedVideos from "@/components/RelatedVideos";
@@ -20,11 +21,11 @@ const Watch = () => {
   const [video, setVideo] = useState<ParsedVideo | null>(() => id ? getCachedVideo(id) : null);
   const [loading, setLoading] = useState(!video);
   const [error, setError] = useState<string | null>(null);
-  const [zapAmount, setZapAmount] = useState<number | null>(null);
   const [showZapModal, setShowZapModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const { isLoggedIn, pubkey: myPubkey } = useNostrAuth();
+  const { zap, loading: zapLoading, success: zapSuccess, error: zapError } = useZap();
 
   useEffect(() => {
     if (!id) return;
@@ -78,17 +79,7 @@ const Watch = () => {
   const handleZap = async (amount: number) => {
     setShowZapModal(false);
     if (!video) return;
-    try {
-      if ((window as any).webln) {
-        await (window as any).webln.enable();
-        setZapAmount(amount);
-        setTimeout(() => setZapAmount(null), 3000);
-      } else {
-        alert("Install a WebLN-compatible wallet (like Alby) to zap creators ⚡");
-      }
-    } catch (err) {
-      console.error("Zap failed:", err);
-    }
+    await zap({ eventId: video.id, recipientPubkey: video.pubkey }, amount);
   };
 
   if (loading) {
@@ -188,12 +179,23 @@ const Watch = () => {
               <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
                 <div className="relative shrink-0">
                   <button
-                    onClick={() => setShowZapModal(!showZapModal)}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/30 rounded-full hover:bg-primary/20 transition-colors"
+                    onClick={() => !zapLoading && setShowZapModal(!showZapModal)}
+                    disabled={zapLoading}
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-full transition-colors ${
+                      zapSuccess
+                        ? "bg-green-500/10 border-green-500/30 text-green-500"
+                        : zapError
+                        ? "bg-destructive/10 border-destructive/30 text-destructive"
+                        : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
+                    }`}
                   >
-                    <Zap className="w-4 h-4 text-primary" fill="currentColor" />
-                    <span className="text-sm font-semibold text-primary whitespace-nowrap">
-                      {zapAmount ? `⚡ ${zapAmount} sats!` : "Zap"}
+                    {zapLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Zap className="w-4 h-4" fill="currentColor" />
+                    )}
+                    <span className="text-sm font-semibold whitespace-nowrap">
+                      {zapLoading ? "Zapping..." : zapSuccess ? "⚡ Zapped!" : zapError ? "Failed" : "Zap"}
                     </span>
                   </button>
                   {showZapModal && (

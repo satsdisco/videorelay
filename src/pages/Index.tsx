@@ -10,6 +10,7 @@ import { useNostrVideos, type TimePeriod } from "@/hooks/useNostrVideos";
 import { useBatchProfiles } from "@/hooks/useNostrProfile";
 import { useRelayStore } from "@/hooks/useRelayStore";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
+import { useFollowList } from "@/hooks/useFollowList";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame, Users, Calendar, Trophy } from "lucide-react";
 import { getRandomLoadingMessage, getRandomEmptyMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
@@ -122,6 +123,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
 
   const { activeRelays } = useRelayStore();
   const { pubkey } = useNostrAuth();
+  const { followedPubkeys } = useFollowList();
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -146,11 +148,11 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
       case "zapped":
         return { ...base, sortBy: "popular" as const };
       case "following":
-        return { ...base, authors: pubkey ? [pubkey] : undefined };
+        return { ...base, authors: followedPubkeys.length > 0 ? followedPubkeys : undefined };
       default:
         return base;
     }
-  }, [activeView, activeRelays, hashtag, sortBy, pubkey, debouncedSearch, timePeriod]);
+  }, [activeView, activeRelays, hashtag, sortBy, pubkey, followedPubkeys, debouncedSearch, timePeriod]);
 
   const { videos, loading, loadingMore, error, hasMore, refetch, loadMore } = useNostrVideos(fetchOptions);
 
