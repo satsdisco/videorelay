@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Upload, Bell, Menu, LogIn, LogOut, User, Copy, Check } from "lucide-react";
+import { Search, Upload, Bell, Menu, LogIn, LogOut, User, Copy, Check, Sun, Moon, Monitor } from "lucide-react";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
+import { useTheme } from "@/hooks/useTheme";
 import { useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
   const { isLoggedIn, pubkey, profile, isExtensionAvailable, login, logout } = useNostrAuth();
+  const { theme, toggleTheme } = useTheme();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,6 +95,19 @@ const Header = ({ onToggleSidebar, onSearch }: HeaderProps) => {
 
       {/* Right */}
       <div className="flex items-center gap-1">
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+          title={`Theme: ${theme}`}
+        >
+          {theme === "dark" ? (
+            <Moon className="w-4 h-4 text-foreground" />
+          ) : theme === "light" ? (
+            <Sun className="w-4 h-4 text-foreground" />
+          ) : (
+            <Monitor className="w-4 h-4 text-foreground" />
+          )}
+        </button>
         {isLoggedIn ? (
           <>
             <button

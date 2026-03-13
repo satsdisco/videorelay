@@ -9,6 +9,7 @@ import MobileNav from "@/components/MobileNav";
 import MobileSearch from "@/components/MobileSearch";
 import { type SidebarView } from "@/components/Sidebar";
 import { Loader2 } from "lucide-react";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Eager: homepage is always needed
 import Index from "./pages/Index.tsx";
@@ -42,6 +43,7 @@ const AppRoutes = () => {
 
   return (
     <>
+      <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route
@@ -65,6 +67,7 @@ const AppRoutes = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
 
       <MobileNav
         activeView={activeView}

@@ -1,20 +1,19 @@
 import { SimplePool, type Filter, type Event } from "nostr-tools";
 
-// Default relays — prioritizing video-heavy and popular relays
+// Default relays — video-heavy relays first, then popular general relays
 export const DEFAULT_RELAYS = [
+  // Video-focused relays
+  "wss://relay.flare.pub",
+  "wss://video.nostr.build",
+  // Popular general relays (good NIP-71 support)
   "wss://relay.damus.io",
   "wss://relay.nostr.band",
   "wss://nos.lol",
   "wss://relay.snort.social",
-  "wss://nostr.wine",
   "wss://relay.primal.net",
-  "wss://nostr-pub.wellorder.net",
-  "wss://nostr.fmt.wiz.biz",
-  "wss://relay.noswhere.com",
-  "wss://nostr.mom",
-  "wss://relay.mostr.pub",
+  "wss://nostr.wine",
   "wss://offchain.pub",
-  "wss://relay.nostrati.com",
+  "wss://relay.noswhere.com",
 ];
 
 // Video event kinds per NIP-71

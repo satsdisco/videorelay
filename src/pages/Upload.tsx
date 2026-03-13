@@ -108,7 +108,11 @@ const Upload = () => {
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">Video URL *</label>
             <Input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://... (.mp4, .webm, .m3u8)" className="bg-secondary" />
-            <p className="text-xs text-muted-foreground mt-1">Paste a direct link to your video file hosted on any server or CDN.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Paste a direct link to your video file. Upload to{" "}
+              <a href="https://nostr.build" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">nostr.build</a>,{" "}
+              <a href="https://void.cat" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">void.cat</a>, or any CDN first.
+            </p>
           </div>
 
           <div>

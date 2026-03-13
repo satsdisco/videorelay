@@ -4,6 +4,10 @@ import {
   PictureInPicture2, SkipBack, SkipForward, Settings,
 } from "lucide-react";
 
+function isHlsUrl(url: string): boolean {
+  return /\.m3u8(\?|$)/i.test(url);
+}
+
 interface VideoPlayerProps {
   src: string;
   poster?: string;
@@ -28,6 +32,50 @@ const VideoPlayer = ({ src, poster, autoPlay = true, onEnded }: VideoPlayerProps
   const [pipSupported, setPipSupported] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSpeed, setShowSpeed] = useState(false);
+
+  // HLS setup — lazy load hls.js only when needed
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !isHlsUrl(src)) return;
+
+    // Safari handles HLS natively
+    if (v.canPlayType("application/vnd.apple.mpegurl")) {
+      v.src = src;
+      return;
+    }
+
+    let hls: any = null;
+    let destroyed = false;
+
+    import("hls.js").then(({ default: Hls }) => {
+      if (destroyed || !Hls.isSupported()) return;
+
+      hls = new Hls({
+        enableWorker: true,
+        startLevel: -1,
+      });
+      hls.loadSource(src);
+      hls.attachMedia(v);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (autoPlay) v.play().catch(() => {});
+      });
+      hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
+        if (data.fatal) {
+          console.error("HLS fatal error:", data);
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            hls.startLoad();
+          } else {
+            hls.destroy();
+          }
+        }
+      });
+    });
+
+    return () => {
+      destroyed = true;
+      if (hls) hls.destroy();
+    };
+  }, [src, autoPlay]);
 
   // Check PiP support
   useEffect(() => {
@@ -211,9 +259,9 @@ const VideoPlayer = ({ src, poster, autoPlay = true, onEnded }: VideoPlayerProps
     >
       <video
         ref={videoRef}
-        src={src}
+        src={isHlsUrl(src) ? undefined : src}
         poster={poster}
-        autoPlay={autoPlay}
+        autoPlay={isHlsUrl(src) ? false : autoPlay}
         playsInline
         className="w-full h-full object-contain"
       />

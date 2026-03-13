@@ -6,4 +6,11 @@ import "@fontsource/space-grotesk/700.css";
 import App from "./App.tsx";
 import "./index.css";
 
+// Apply saved theme before first render to prevent flash
+const savedTheme = localStorage.getItem("videorelay_theme") || "dark";
+const resolved = savedTheme === "system"
+  ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+  : savedTheme;
+document.documentElement.classList.add(resolved);
+
 createRoot(document.getElementById("root")!).render(<App />);

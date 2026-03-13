@@ -49,6 +49,50 @@
     --surface-hover: 250 15% 15%;
     --glow-primary: 265 80% 60%;
   }
+
+  .light {
+    --background: 0 0% 98%;
+    --foreground: 250 15% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 250 15% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 250 15% 10%;
+
+    --primary: 265 80% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 250 10% 93%;
+    --secondary-foreground: 250 10% 30%;
+
+    --muted: 250 10% 93%;
+    --muted-foreground: 250 10% 45%;
+
+    --accent: 265 80% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 250 10% 88%;
+    --input: 250 10% 88%;
+    --ring: 265 80% 55%;
+
+    --sidebar-background: 0 0% 96%;
+    --sidebar-foreground: 250 10% 30%;
+    --sidebar-primary: 265 80% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 250 10% 92%;
+    --sidebar-accent-foreground: 250 15% 10%;
+    --sidebar-border: 250 10% 90%;
+    --sidebar-ring: 265 80% 55%;
+
+    --zap: 45 100% 50%;
+    --zap-foreground: 0 0% 100%;
+    --surface-hover: 250 10% 92%;
+    --glow-primary: 265 80% 55%;
+  }
 }
 
 @layer base {
@@ -67,14 +111,14 @@
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(250 15% 7%);
+  background: hsl(var(--background));
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(250 15% 25%);
+  background: hsl(var(--border));
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(265 80% 60%);
+  background: hsl(var(--primary));
 }
 
 /* Safe area for mobile bottom nav */
