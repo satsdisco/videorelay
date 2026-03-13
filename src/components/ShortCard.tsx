@@ -5,21 +5,7 @@ import { timeAgo } from "@/lib/nostr";
 import type { ParsedVideo } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
 
-import thumb1 from "@/assets/thumb-1.jpg";
-import thumb2 from "@/assets/thumb-2.jpg";
-import thumb3 from "@/assets/thumb-3.jpg";
-import thumb4 from "@/assets/thumb-4.jpg";
-import thumb5 from "@/assets/thumb-5.jpg";
-import thumb6 from "@/assets/thumb-6.jpg";
-import thumb7 from "@/assets/thumb-7.jpg";
-import thumb8 from "@/assets/thumb-8.jpg";
-
-const fallbackThumbs = [thumb1, thumb2, thumb3, thumb4, thumb5, thumb6, thumb7, thumb8];
-
-function getFallbackThumb(id: string): string {
-  const index = id.charCodeAt(0) % fallbackThumbs.length;
-  return fallbackThumbs[index];
-}
+import { getFallbackThumb } from "@/lib/fallbackThumb";
 
 interface ShortCardProps {
   video: ParsedVideo;

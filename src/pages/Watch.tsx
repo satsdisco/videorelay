@@ -12,7 +12,7 @@ import VideoPlayer from "@/components/VideoPlayer";
 import VideoComments from "@/components/VideoComments";
 import RelatedVideos from "@/components/RelatedVideos";
 
-import thumb1 from "@/assets/thumb-1.jpg";
+import { getFallbackThumb } from "@/lib/fallbackThumb";
 
 const Watch = () => {
   const { id } = useParams<{ id: string }>();
@@ -125,7 +125,7 @@ const Watch = () => {
           <div className="mb-4 md:mb-6">
             <VideoPlayer
               src={video.videoUrl}
-              poster={video.thumbnail || thumb1}
+              poster={video.thumbnail || getFallbackThumb(video.id)}
             />
           </div>
 

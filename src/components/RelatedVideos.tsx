@@ -5,18 +5,13 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { getCachedVideos } from "@/lib/videoCache";
 
-import thumb1 from "@/assets/thumb-1.jpg";
-import thumb2 from "@/assets/thumb-2.jpg";
-import thumb3 from "@/assets/thumb-3.jpg";
-import thumb4 from "@/assets/thumb-4.jpg";
-
-const fallbackThumbs = [thumb1, thumb2, thumb3, thumb4];
+import { getFallbackThumb } from "@/lib/fallbackThumb";
 
 const RelatedVideoItem = ({ video }: { video: ParsedVideo }) => {
   const { profile } = useNostrProfile(video.pubkey);
   const navigate = useNavigate();
   const displayName = profile?.displayName || profile?.name || video.pubkey.slice(0, 10) + "...";
-  const thumbnail = video.thumbnail || fallbackThumbs[video.id.charCodeAt(0) % fallbackThumbs.length];
+  const thumbnail = video.thumbnail || getFallbackThumb(video.id);
 
   return (
     <div
@@ -31,7 +26,7 @@ const RelatedVideoItem = ({ video }: { video: ParsedVideo }) => {
           loading="lazy"
           decoding="async"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = fallbackThumbs[0];
+            (e.target as HTMLImageElement).src = getFallbackThumb(video.id);
           }}
         />
         {video.duration && (
