@@ -8,6 +8,7 @@ import VideoCardSkeleton from "@/components/VideoCardSkeleton";
 import ShortCard from "@/components/ShortCard";
 import { useNostrVideos, type TimePeriod } from "@/hooks/useNostrVideos";
 import { useTrendingVideos } from "@/hooks/useTrendingVideos";
+import { usePopularVideos } from "@/hooks/usePopularVideos";
 import { useBatchProfiles } from "@/hooks/useNostrProfile";
 import { useRelayStore } from "@/hooks/useRelayStore";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
@@ -155,20 +156,39 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
     }
   }, [activeView, activeRelays, hashtag, sortBy, pubkey, followedPubkeys, debouncedSearch, timePeriod]);
 
-  const { videos: relayVideos, loading, loadingMore, error, hasMore, refetch, loadMore } = useNostrVideos(fetchOptions);
+  const isPopularView = activeView === "trending" || activeView === "zapped";
 
-  // Supplementary discovery — runs once in background to find more content
-  const { trendingVideos } = useTrendingVideos({
-    enabled: activeView === "home" || activeView === "trending" || activeView === "zapped",
+  // Standard relay fetch — used for Home and Following views
+  const { videos: relayVideos, loading: relayLoading, loadingMore, error: relayError, hasMore, refetch: relayRefetch, loadMore } = useNostrVideos(fetchOptions);
+
+  // Deep popularity engine — used for Trending and Most Zapped views
+  const { videos: popularVideos, loading: popularLoading, error: popularError, refetch: popularRefetch } = usePopularVideos({
+    relays: activeRelays,
+    timePeriod,
+    enabled: isPopularView,
   });
 
-  // Merge relay results with discovery results, deduped
+  // Supplementary discovery — runs in background for Home view
+  const { trendingVideos } = useTrendingVideos({
+    enabled: activeView === "home",
+  });
+
+  // Select the right data source based on view
+  const loading = isPopularView ? popularLoading : relayLoading;
+  const error = isPopularView ? popularError : relayError;
+  const refetch = isPopularView ? popularRefetch : relayRefetch;
+
   const videos = useMemo(() => {
+    if (isPopularView) {
+      // Popular views use the engagement-scored results directly
+      return popularVideos;
+    }
+    // Home view merges relay results with background discovery
     if (trendingVideos.length === 0) return relayVideos;
     const seen = new Set(relayVideos.map(v => v.id));
     const extra = trendingVideos.filter(v => !seen.has(v.id));
     return [...relayVideos, ...extra];
-  }, [relayVideos, trendingVideos]);
+  }, [isPopularView, popularVideos, relayVideos, trendingVideos]);
 
   // Batch-fetch profiles for all visible videos
   const pubkeys = useMemo(() => [...new Set(videos.map(v => v.pubkey))], [videos]);
