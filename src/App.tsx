@@ -19,6 +19,7 @@ const Watch = lazy(() => import("./pages/Watch.tsx"));
 const Channel = lazy(() => import("./pages/Channel.tsx"));
 const Upload = lazy(() => import("./pages/Upload.tsx"));
 const Shorts = lazy(() => import("./pages/Shorts.tsx"));
+const Live = lazy(() => import("./pages/Live.tsx"));
 const Settings = lazy(() => import("./pages/Settings.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
@@ -38,7 +39,11 @@ const AppRoutes = () => {
 
   const handleViewChange = (view: SidebarView) => {
     setActiveView(view);
-    navigate("/");
+    if (view === "live") {
+      navigate("/live");
+    } else {
+      navigate("/");
+    }
   };
 
   return (
@@ -61,6 +66,7 @@ const AppRoutes = () => {
           />
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/shorts" element={<Shorts />} />
+          <Route path="/live" element={<Live />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/channel/:pubkey" element={<Channel />} />
           <Route path="/upload" element={<Upload />} />

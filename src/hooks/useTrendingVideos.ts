@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getPool, DEFAULT_RELAYS, parseVideoEvent, type ParsedVideo, VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND } from "@/lib/nostr";
+import { getPool, DEFAULT_RELAYS, parseVideoEvent, type ParsedVideo, ALL_VIDEO_KINDS } from "@/lib/nostr";
 import type { Event } from "nostr-tools";
 
 /**
@@ -38,7 +38,7 @@ export function useTrendingVideos(options: TrendingOptions = {}) {
       const bigQueryPromise = (async () => {
         try {
           const events = await pool.querySync(DISCOVERY_RELAYS, {
-            kinds: [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND],
+            kinds: ALL_VIDEO_KINDS,
             limit: 500,
           });
           for (const e of events) {
@@ -57,7 +57,7 @@ export function useTrendingVideos(options: TrendingOptions = {}) {
       const tagPromises = popularTags.map(async (tag) => {
         try {
           const events = await pool.querySync(DISCOVERY_RELAYS, {
-            kinds: [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND],
+            kinds: ALL_VIDEO_KINDS,
             "#t": [tag],
             limit: 50,
           });
@@ -83,7 +83,7 @@ export function useTrendingVideos(options: TrendingOptions = {}) {
       const timePromises = timeWindows.map(async ({ since, until }) => {
         try {
           const events = await pool.querySync(DISCOVERY_RELAYS.slice(0, 1), {
-            kinds: [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND],
+            kinds: ALL_VIDEO_KINDS,
             since,
             until,
             limit: 100,

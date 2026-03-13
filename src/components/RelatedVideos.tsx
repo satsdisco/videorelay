@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo, VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND } from "@/lib/nostr";
+import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo, ALL_VIDEO_KINDS } from "@/lib/nostr";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -82,8 +82,8 @@ const RelatedVideos = ({ currentVideoId, tags }: RelatedVideosProps) => {
       try {
         const pool = getPool();
         const filter = tags.length > 0
-          ? { kinds: [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND] as number[], "#t": [tags[0]], limit: 20 }
-          : { kinds: [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND] as number[], limit: 20 };
+          ? { kinds: ALL_VIDEO_KINDS as number[], "#t": [tags[0]], limit: 20 }
+          : { kinds: ALL_VIDEO_KINDS as number[], limit: 20 };
 
         const events = await pool.querySync(DEFAULT_RELAYS, filter);
         const parsed = events

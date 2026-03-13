@@ -8,6 +8,7 @@ import { useNostrFollow } from "@/hooks/useNostrFollow";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { getRandomLoadingMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
 import { useZap } from "@/hooks/useZap";
+import { recordView } from "@/lib/viewTracker";
 import VideoPlayer from "@/components/VideoPlayer";
 import VideoComments from "@/components/VideoComments";
 import RelatedVideos from "@/components/RelatedVideos";
@@ -26,6 +27,11 @@ const Watch = () => {
 
   const { isLoggedIn, pubkey: myPubkey } = useNostrAuth();
   const { zap, loading: zapLoading, success: zapSuccess, error: zapError } = useZap();
+
+  // Record view
+  useEffect(() => {
+    if (id) recordView(id);
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;

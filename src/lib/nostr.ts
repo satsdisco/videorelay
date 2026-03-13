@@ -23,6 +23,9 @@ export const SHORT_VIDEO_KIND = 22; // short video
 export const ADDRESSABLE_VIDEO_KIND = 34235; // addressable video
 export const ADDRESSABLE_SHORT_KIND = 34236; // addressable short
 
+// All video kinds including kind 1 (text notes with video URLs)
+export const ALL_VIDEO_KINDS = [1, VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND];
+
 // Singleton pool
 let pool: SimplePool | null = null;
 
@@ -52,6 +55,10 @@ export interface ParsedVideo {
 /**
  * Parse a NIP-71 video event into a structured format
  */
+// Regex to find video URLs in text content
+const VIDEO_URL_REGEX = /https?:\/\/[^\s"'<>]+\.(mp4|webm|mov|m3u8|ogg)(\?[^\s"'<>]*)?/gi;
+const IMAGE_URL_REGEX = /https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|webp|gif)(\?[^\s"'<>]*)?/gi;
+
 export function parseVideoEvent(event: Event): ParsedVideo | null {
   const getTag = (name: string): string | undefined => {
     const tag = event.tags.find((t) => t[0] === name);
@@ -61,6 +68,18 @@ export function parseVideoEvent(event: Event): ParsedVideo | null {
   const getAllTags = (name: string): string[] => {
     return event.tags.filter((t) => t[0] === name).map((t) => t[1]);
   };
+
+  // For kind 1 events, detect video URLs in content
+  if (event.kind === 1) {
+    const videoMatches = event.content?.match(VIDEO_URL_REGEX);
+    if (!videoMatches || videoMatches.length === 0) {
+      // Also check for url tags pointing to video files
+      const urlTag = getTag("url");
+      if (!urlTag || !urlTag.match(/\.(mp4|webm|mov|m3u8|ogg)(\?|$)/i)) {
+        return null; // Not a video post
+      }
+    }
+  }
 
   // Get video URL from various possible tag formats
   let videoUrl = getTag("url") || "";
@@ -91,6 +110,12 @@ export function parseVideoEvent(event: Event): ParsedVideo | null {
     videoUrl = getTag("streaming") || getTag("recording") || "";
   }
 
+  // For kind 1: extract video URL from content text
+  if (!videoUrl && event.kind === 1 && event.content) {
+    const matches = event.content.match(VIDEO_URL_REGEX);
+    if (matches) videoUrl = matches[0];
+  }
+
   if (!videoUrl) return null;
 
   // Get thumbnail
@@ -112,7 +137,24 @@ export function parseVideoEvent(event: Event): ParsedVideo | null {
     }
   }
 
-  const title = getTag("title") || getTag("subject") || "Untitled Video";
+  // For kind 1: try to extract thumbnail from image URLs in content
+  if (!thumbnail && event.kind === 1 && event.content) {
+    const imageMatches = event.content.match(IMAGE_URL_REGEX);
+    if (imageMatches) thumbnail = imageMatches[0];
+  }
+
+  // For kind 1: use first line of content as title (strip URLs)
+  let title = getTag("title") || getTag("subject") || "";
+  if (!title && event.kind === 1 && event.content) {
+    const firstLine = event.content.split("\n")[0]
+      .replace(VIDEO_URL_REGEX, "")
+      .replace(IMAGE_URL_REGEX, "")
+      .replace(/https?:\/\/[^\s]+/g, "")
+      .trim();
+    title = firstLine || "Untitled Video";
+  }
+  if (!title) title = "Untitled Video";
+
   const summary = event.content || getTag("summary") || "";
   const duration = getTag("duration") || "0";
   const hashtags = getAllTags("t");

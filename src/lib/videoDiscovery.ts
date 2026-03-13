@@ -1,7 +1,5 @@
-import { getPool, parseVideoEvent, type ParsedVideo, VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND } from "./nostr";
+import { getPool, parseVideoEvent, type ParsedVideo, ALL_VIDEO_KINDS } from "./nostr";
 import type { Filter, Event } from "nostr-tools";
-
-const VIDEO_KINDS = [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND];
 
 // Aggregator relays that index the broadest content
 const DISCOVERY_RELAYS = [
@@ -15,12 +13,14 @@ const ENGAGEMENT_CACHE_KEY = "videorelay_engagement";
 const ENGAGEMENT_CACHE_TTL = 1000 * 60 * 15; // 15 min
 
 interface EngagementScore {
-  reactions: number;
-  replies: number;
+  likes: number;
+  dislikes: number;
+  comments: number;
   reposts: number;
   zapAmount: number;
   zapCount: number;
   score: number; // composite
+  ratioed: boolean;
 }
 
 let engagementCache: Map<string, EngagementScore> = new Map();
@@ -56,12 +56,17 @@ async function fetchEngagementScores(videoIds: string[]): Promise<Map<string, En
   const pool = getPool();
   const scores = new Map<string, EngagementScore>();
 
+  const zero = (): EngagementScore => ({
+    likes: 0, dislikes: 0, comments: 0, reposts: 0,
+    zapAmount: 0, zapCount: 0, score: 0, ratioed: false,
+  });
+
   // Initialize all with zero scores
   for (const id of videoIds) {
     if (engagementCache.has(id)) {
       scores.set(id, engagementCache.get(id)!);
     } else {
-      scores.set(id, { reactions: 0, replies: 0, reposts: 0, zapAmount: 0, zapCount: 0, score: 0 });
+      scores.set(id, zero());
     }
   }
 
@@ -75,12 +80,17 @@ async function fetchEngagementScores(videoIds: string[]): Promise<Map<string, En
     const chunk = uncached.slice(i, i + chunkSize);
 
     try {
-      // Fetch reactions (kind 7), reposts (kind 6, 16), and zaps (kind 9735) in parallel
-      const [reactions, zaps] = await Promise.allSettled([
+      // Fetch reactions (kind 7), reposts (kind 6, 16), comments (kind 1111, 1), and zaps (kind 9735)
+      const [reactions, comments, zaps] = await Promise.allSettled([
         pool.querySync(DISCOVERY_RELAYS.slice(0, 2), {
           kinds: [7, 6, 16],
           "#e": chunk,
           limit: 1000,
+        }),
+        pool.querySync(DISCOVERY_RELAYS.slice(0, 2), {
+          kinds: [1111, 1],
+          "#e": chunk,
+          limit: 500,
         }),
         pool.querySync(DISCOVERY_RELAYS.slice(0, 2), {
           kinds: [9735],
@@ -89,7 +99,7 @@ async function fetchEngagementScores(videoIds: string[]): Promise<Map<string, En
         }),
       ]);
 
-      // Count reactions and reposts
+      // Count reactions (likes/dislikes) and reposts
       if (reactions.status === "fulfilled") {
         for (const event of reactions.value) {
           const eTag = event.tags.find(t => t[0] === "e");
@@ -98,8 +108,27 @@ async function fetchEngagementScores(videoIds: string[]): Promise<Map<string, En
           const entry = scores.get(videoId);
           if (!entry) continue;
 
-          if (event.kind === 7) entry.reactions++;
-          else if (event.kind === 6 || event.kind === 16) entry.reposts++;
+          if (event.kind === 7) {
+            // NIP-25: "+" or "" = like, "-" = dislike
+            if (event.content === "-") {
+              entry.dislikes++;
+            } else {
+              entry.likes++;
+            }
+          } else if (event.kind === 6 || event.kind === 16) {
+            entry.reposts++;
+          }
+        }
+      }
+
+      // Count comments
+      if (comments.status === "fulfilled") {
+        for (const event of comments.value) {
+          const eTag = event.tags.find(t => t[0] === "e");
+          if (!eTag) continue;
+          const videoId = eTag[1];
+          const entry = scores.get(videoId);
+          if (entry) entry.comments++;
         }
       }
 
@@ -132,8 +161,16 @@ async function fetchEngagementScores(videoIds: string[]): Promise<Map<string, En
 
   // Compute composite scores and cache
   for (const [id, entry] of scores) {
-    // Weighted score: zap_amount is king, reactions and reposts matter too
-    entry.score = (entry.zapAmount * 1) + (entry.zapCount * 100) + (entry.reactions * 10) + (entry.reposts * 50);
+    // Ratioed: dislikes > likes * 2 → exclude from trending
+    entry.ratioed = entry.dislikes > entry.likes * 2 && entry.dislikes > 3;
+
+    // Scoring: likes*0.5 - dislikes*2 + (zapAmount/1000)*5 + comments*0.3 + reposts*1
+    entry.score = (entry.likes * 0.5)
+      - (entry.dislikes * 2)
+      + (entry.zapAmount / 1000) * 5
+      + (entry.comments * 0.3)
+      + (entry.reposts * 1);
+
     engagementCache.set(id, entry);
   }
   saveEngagementCache();
@@ -204,7 +241,7 @@ export async function discoverPopularVideos(
     queryRelays.map(async relay => {
       try {
         const filter: Filter = {
-          kinds: VIDEO_KINDS,
+          kinds: ALL_VIDEO_KINDS,
           limit: Math.ceil(limit / timeWindows.length),
           ...window,
         };
@@ -231,22 +268,34 @@ export async function discoverPopularVideos(
   // Fetch real engagement scores
   const scores = await fetchEngagementScores(deduped.map(v => v.id));
 
-  // Apply scores to videos
-  for (const video of deduped) {
-    const engagement = scores.get(video.id);
+  // Filter ratioed content and apply scores
+  const nowSecs = Date.now() / 1000;
+  const filtered = deduped.filter(v => {
+    const engagement = scores.get(v.id);
+    if (engagement?.ratioed) return false;
     if (engagement) {
-      video.zapCount = engagement.zapAmount; // Use actual sats amount
+      v.zapCount = engagement.zapAmount;
     }
-  }
-
-  // Sort by composite engagement score
-  deduped.sort((a, b) => {
-    const scoreA = scores.get(a.id)?.score || 0;
-    const scoreB = scores.get(b.id)?.score || 0;
-    return scoreB - scoreA;
+    return true;
   });
 
-  return deduped;
+  // Sort by composite score + time decay
+  filtered.sort((a, b) => {
+    const scoreA = scores.get(a.id)?.score || 0;
+    const scoreB = scores.get(b.id)?.score || 0;
+
+    // Time decay: boost recent content (168 hours = 1 week)
+    const ageHoursA = (nowSecs - a.publishedAt) / 3600;
+    const ageHoursB = (nowSecs - b.publishedAt) / 3600;
+    const decayA = Math.max(0, 168 - ageHoursA) / 168;
+    const decayB = Math.max(0, 168 - ageHoursB) / 168;
+
+    const finalA = scoreA + decayA * 10;
+    const finalB = scoreB + decayB * 10;
+    return finalB - finalA;
+  });
+
+  return filtered;
 }
 
 function dedupeVideos(videos: ParsedVideo[]): ParsedVideo[] {

@@ -243,6 +243,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
     trending: "Trending",
     zapped: "Most Zapped",
     following: "Following",
+    live: "Live",
   }[activeView];
 
   return (

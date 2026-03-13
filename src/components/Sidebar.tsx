@@ -4,11 +4,12 @@ import {
   TrendingUp,
   Zap,
   Users,
+  Radio,
   Settings,
   Globe,
 } from "lucide-react";
 
-export type SidebarView = "home" | "trending" | "zapped" | "following";
+export type SidebarView = "home" | "trending" | "zapped" | "following" | "live";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -22,6 +23,7 @@ const mainLinks: { icon: typeof Home; label: string; view: SidebarView }[] = [
   { icon: TrendingUp, label: "Trending", view: "trending" },
   { icon: Zap, label: "Most Zapped", view: "zapped" },
   { icon: Users, label: "Following", view: "following" },
+  { icon: Radio, label: "Live", view: "live" },
 ];
 
 const Sidebar = ({ collapsed, activeView, onChangeView, onOpenRelays }: SidebarProps) => {

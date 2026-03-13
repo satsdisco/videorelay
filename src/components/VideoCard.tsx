@@ -1,4 +1,4 @@
-import { Zap, Clock } from "lucide-react";
+import { Zap, Clock, Eye } from "lucide-react";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { timeAgo } from "@/lib/nostr";
 import type { ParsedVideo } from "@/lib/nostr";
@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
 import { getFallbackThumb } from "@/lib/fallbackThumb";
+import { hasWatched } from "@/lib/viewTracker";
 
 interface VideoCardProps {
   video: ParsedVideo;
@@ -22,6 +23,7 @@ const VideoCard = ({ video, cachedProfile }: VideoCardProps) => {
   const displayName = profile?.displayName || profile?.name || video.pubkey.slice(0, 12) + "...";
   const avatar = profile?.picture;
   const thumbnail = video.thumbnail || getFallbackThumb(video.id);
+  const watched = hasWatched(video.id);
 
   return (
     <div
@@ -47,6 +49,13 @@ const VideoCard = ({ video, cachedProfile }: VideoCardProps) => {
         {video.duration && (
           <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-background/90 rounded text-xs font-medium text-foreground backdrop-blur-sm">
             {video.duration}
+          </div>
+        )}
+        {/* Watched badge */}
+        {watched && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 bg-background/80 rounded text-[10px] font-medium text-muted-foreground backdrop-blur-sm">
+            <Eye className="w-3 h-3" />
+            Watched
           </div>
         )}
         {/* Hover overlay */}

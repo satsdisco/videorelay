@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { getPool, DEFAULT_RELAYS, parseVideoEvent, type ParsedVideo, VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND } from "@/lib/nostr";
+import { getPool, DEFAULT_RELAYS, parseVideoEvent, type ParsedVideo, ALL_VIDEO_KINDS } from "@/lib/nostr";
 import { cacheVideos } from "@/lib/videoCache";
 import type { Filter, Event } from "nostr-tools";
 
@@ -14,8 +14,6 @@ interface UseNostrVideosOptions {
   search?: string;
   timePeriod?: TimePeriod;
 }
-
-const VIDEO_KINDS = [VIDEO_KIND, SHORT_VIDEO_KIND, ADDRESSABLE_VIDEO_KIND, ADDRESSABLE_SHORT_KIND];
 
 function getTimePeriodSince(period: TimePeriod): number | undefined {
   if (period === "all") return undefined;
@@ -131,7 +129,7 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
 
   const buildFilter = useCallback((until?: number, customLimit?: number): Filter => {
     const filter: Filter = {
-      kinds: VIDEO_KINDS,
+      kinds: ALL_VIDEO_KINDS,
       limit: customLimit || limit,
     };
 
