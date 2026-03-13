@@ -13,6 +13,7 @@ interface ZapState {
   loading: boolean;
   success: boolean;
   error: string | null;
+  invoice: string | null; // bolt11 invoice for manual payment
 }
 
 /**
@@ -51,23 +52,19 @@ export function useZap() {
     loading: false,
     success: false,
     error: null,
+    invoice: null,
   });
 
   const zap = useCallback(
     async (target: ZapTarget, amountSats: number) => {
-      setState({ loading: true, success: false, error: null });
+      setState({ loading: true, success: false, error: null, invoice: null });
 
       try {
         if (!window.nostr) {
-          throw new Error("No Nostr extension found. Install Alby or nos2x.");
+          throw new Error("No Nostr extension found. Install Alby or nos2x to sign zap requests.");
         }
         if (!pubkey) {
-          throw new Error("You must be signed in to zap.");
-        }
-        if (!(window as any).webln) {
-          throw new Error(
-            "No WebLN wallet found. Install Alby to send Lightning payments."
-          );
+          throw new Error("Sign in first to send zaps.");
         }
 
         // 1. Fetch recipient's profile to get their Lightning address
@@ -149,11 +146,23 @@ export function useZap() {
           );
         }
 
-        // 5. Pay the invoice via WebLN
-        await (window as any).webln.enable();
-        await (window as any).webln.sendPayment(invoiceData.pr);
-
-        setState({ loading: false, success: true, error: null });
+        // 5. Try WebLN first, fall back to showing invoice
+        const hasWebLN = !!(window as any).webln;
+        if (hasWebLN) {
+          try {
+            await (window as any).webln.enable();
+            await (window as any).webln.sendPayment(invoiceData.pr);
+            setState({ loading: false, success: true, error: null, invoice: null });
+          } catch (webLnErr: any) {
+            // WebLN failed (rejected, not available) — show invoice instead
+            setState({ loading: false, success: false, error: null, invoice: invoiceData.pr });
+            return;
+          }
+        } else {
+          // No WebLN — show invoice for manual payment
+          setState({ loading: false, success: false, error: null, invoice: invoiceData.pr });
+          return;
+        }
 
         // Reset success after a few seconds
         setTimeout(() => {
@@ -165,6 +174,7 @@ export function useZap() {
           loading: false,
           success: false,
           error: err?.message || "Zap failed",
+          invoice: null,
         });
 
         // Clear error after a few seconds

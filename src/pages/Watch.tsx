@@ -26,7 +26,7 @@ const Watch = () => {
   const [copied, setCopied] = useState(false);
 
   const { isLoggedIn, pubkey: myPubkey } = useNostrAuth();
-  const { zap, loading: zapLoading, success: zapSuccess, error: zapError } = useZap();
+  const { zap, loading: zapLoading, success: zapSuccess, error: zapError, invoice: zapInvoice } = useZap();
 
   // Record view
   useEffect(() => {
@@ -83,9 +83,9 @@ const Watch = () => {
   };
 
   const handleZap = async (amount: number) => {
-    setShowZapModal(false);
     if (!video) return;
     await zap({ eventId: video.id, recipientPubkey: video.pubkey }, amount);
+    // Keep modal open if we got an invoice (no WebLN)
   };
 
   if (loading) {
@@ -204,7 +204,7 @@ const Watch = () => {
                       {zapLoading ? "Zapping..." : zapSuccess ? "⚡ Zapped!" : zapError ? "Failed" : "Zap"}
                     </span>
                   </button>
-                  {showZapModal && (
+                  {showZapModal && !zapInvoice && (
                     <div className="absolute top-full mt-2 right-0 md:right-0 left-0 md:left-auto bg-background border border-border rounded-xl shadow-xl p-3 z-50 w-56">
                       <p className="text-xs text-muted-foreground mb-2">Send sats ⚡</p>
                       <div className="grid grid-cols-3 gap-2">
@@ -218,6 +218,38 @@ const Watch = () => {
                           </button>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {zapInvoice && (
+                    <div className="absolute top-full mt-2 left-0 bg-background border border-border rounded-xl shadow-xl p-4 z-50 w-72">
+                      <p className="text-xs font-semibold text-foreground mb-2">⚡ Pay this invoice</p>
+                      <div className="bg-secondary rounded-lg p-2 mb-3">
+                        <p className="text-[10px] text-muted-foreground break-all font-mono leading-relaxed select-all">
+                          {zapInvoice}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(zapInvoice);
+                          }}
+                          className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
+                        >
+                          Copy Invoice
+                        </button>
+                        <a
+                          href={`lightning:${zapInvoice}`}
+                          className="flex-1 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium text-center hover:bg-muted transition-colors"
+                        >
+                          Open Wallet
+                        </a>
+                      </div>
+                      <button
+                        onClick={() => setShowZapModal(false)}
+                        className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Close
+                      </button>
                     </div>
                   )}
                 </div>
