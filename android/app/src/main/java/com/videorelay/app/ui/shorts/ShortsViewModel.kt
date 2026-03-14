@@ -112,9 +112,10 @@ class ShortsViewModel @Inject constructor(
 
     /**
      * Fetch shorts with diversity:
-     * - Limit per author (max 3 per fetch) to avoid one person dominating
+     * - Limit per author (max 2 per fetch) to avoid one person dominating
      * - Shuffle result for variety
      * - Track seen IDs to avoid repeats across loads
+     * - Falls back to short-ish videos (< 3 min) if not enough true shorts
      */
     private suspend fun fetchAndDedupe(): List<Video> {
         val allVideos = videoRepository.fetchVideos(
@@ -122,21 +123,33 @@ class ShortsViewModel @Inject constructor(
             until = lastTimestamp,
         )
 
-        val shorts = allVideos
+        // Primary: videos marked as shorts
+        var shorts = allVideos
             .filter { it.isShort && it.id !in seenIds }
 
-        // Limit per author — max 3 per load to ensure diversity
+        // Fallback: if we have very few shorts, include videos under 3 minutes
+        if (shorts.size < 5) {
+            val shortish = allVideos.filter {
+                !it.isShort && it.id !in seenIds &&
+                    it.durationSeconds in 1..180
+            }
+            shorts = shorts + shortish
+        }
+
+        // Limit per author — max 2 per load to ensure diversity
         val diverse = shorts
             .groupBy { it.pubkey }
-            .flatMap { (_, videos) -> videos.take(3) }
+            .flatMap { (_, videos) ->
+                videos.shuffled().take(2)
+            }
             .shuffled()
 
         // Track what we've shown
         diverse.forEach { seenIds.add(it.id) }
 
         // Update pagination cursor
-        if (shorts.isNotEmpty()) {
-            lastTimestamp = shorts.minOf { it.publishedAt }
+        if (allVideos.isNotEmpty()) {
+            lastTimestamp = allVideos.minOf { it.publishedAt }
         }
 
         return diverse

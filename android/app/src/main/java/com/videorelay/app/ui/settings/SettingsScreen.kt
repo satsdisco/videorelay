@@ -1,7 +1,10 @@
 package com.videorelay.app.ui.settings
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,6 +36,21 @@ fun SettingsScreen(
     var showAddRelay by remember { mutableStateOf(false) }
     var newRelayUrl by remember { mutableStateOf("") }
     var showLoginDialog by remember { mutableStateOf(false) }
+
+    // Amber ActivityResult launcher
+    val amberLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val pubkey = result.data?.getStringExtra("signature")
+                ?: result.data?.getStringExtra("pubkey")
+                ?: result.data?.getStringExtra("result")
+            if (pubkey != null) {
+                viewModel.onAmberResult(pubkey)
+                showLoginDialog = false
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -75,7 +94,6 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         if (uiState.loggedInPubkey != null) {
-                            // Logged in state
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     Icons.Filled.CheckCircle,
@@ -115,7 +133,6 @@ fun SettingsScreen(
                                 Text("Sign Out")
                             }
                         } else {
-                            // Not logged in
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     Icons.Filled.AccountCircle,
@@ -138,8 +155,6 @@ fun SettingsScreen(
                                 }
                             }
                             Spacer(modifier = Modifier.height(16.dp))
-
-                            // Sign in button
                             Button(
                                 onClick = { showLoginDialog = true },
                                 modifier = Modifier.fillMaxWidth(),
@@ -147,7 +162,7 @@ fun SettingsScreen(
                                     containerColor = MaterialTheme.colorScheme.primary,
                                 ),
                             ) {
-                                Icon(Icons.Filled.Login, null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.AutoMirrored.Filled.Login, null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Sign In")
                             }
@@ -344,14 +359,14 @@ fun SettingsScreen(
             onLoginNsec = { viewModel.loginWithNsec(it) },
             onLoginBunker = { viewModel.loginWithBunker(it) },
             onLoginAmber = {
-                // Launch Amber intent
                 try {
                     val intent = Intent("com.greenart7c3.nostrsigner.GET_PUBLIC_KEY").apply {
                         `package` = "com.greenart7c3.nostrsigner"
+                        putExtra("type", "get_public_key")
                     }
-                    context.startActivity(intent)
+                    amberLauncher.launch(intent)
                 } catch (e: Exception) {
-                    // Amber not responding
+                    // Amber failed to launch
                 }
             },
             onDismiss = { showLoginDialog = false },
@@ -359,7 +374,6 @@ fun SettingsScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LoginDialog(
     isAmberAvailable: Boolean,
@@ -370,7 +384,7 @@ private fun LoginDialog(
     onLoginAmber: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(if (isAmberAvailable) 1 else 0) }
     var nsecInput by remember { mutableStateOf("") }
     var bunkerInput by remember { mutableStateOf("") }
     var showNsec by remember { mutableStateOf(false) }
@@ -387,7 +401,6 @@ private fun LoginDialog(
         },
         text = {
             Column {
-                // Auth method tabs
                 TabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -414,7 +427,6 @@ private fun LoginDialog(
 
                 when (selectedTab) {
                     0 -> {
-                        // nsec login
                         Text(
                             "Paste your nsec private key",
                             style = MaterialTheme.typography.bodySmall,
@@ -465,11 +477,16 @@ private fun LoginDialog(
                         }
                     }
                     1 -> {
-                        // Amber login
                         if (isAmberAvailable) {
                             Text(
-                                "Amber signer detected on this device.",
+                                "Amber signer detected on this device. Tap below to sign in securely.",
                                 style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "Your private key stays in Amber — VideoRelay only gets your public key.",
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Spacer(modifier = Modifier.height(12.dp))
@@ -487,16 +504,14 @@ private fun LoginDialog(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "Amber is the recommended way to manage your Nostr identity on Android. " +
-                                    "It keeps your private key secure and signs events on your behalf.",
+                                "Amber keeps your private key secure and signs events on your behalf. " +
+                                    "Get it from Zapstore or GitHub.",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             OutlinedButton(
-                                onClick = {
-                                    // Open Amber on Zapstore or GitHub
-                                },
+                                onClick = { /* TODO: open zapstore link */ },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text("Get Amber")
@@ -504,7 +519,6 @@ private fun LoginDialog(
                         }
                     }
                     2 -> {
-                        // Bunker login (NIP-46)
                         Text(
                             "Paste your bunker connection string",
                             style = MaterialTheme.typography.bodySmall,
@@ -533,7 +547,6 @@ private fun LoginDialog(
                     }
                 }
 
-                // Error message
                 if (loginError != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(

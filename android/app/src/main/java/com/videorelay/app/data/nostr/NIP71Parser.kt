@@ -71,7 +71,7 @@ object NIP71Parser {
         val isShortKind = event.kind == NostrConstants.SHORT_VIDEO_KIND ||
                 event.kind == NostrConstants.ADDRESSABLE_SHORT_KIND
         val hasShortTag = hashtags.any { it.lowercase() in NostrConstants.SHORT_TAGS }
-        val isShort = isShortKind || hasShortTag || (durationSecs in 1..30)
+        val isShort = isShortKind || hasShortTag || (durationSecs in 1..60)
 
         return Video(
             id = event.id,
