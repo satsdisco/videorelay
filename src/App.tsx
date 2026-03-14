@@ -36,6 +36,7 @@ const VIEW_ROUTES: Record<string, SidebarView> = {
   "/": "home",
   "/trending": "trending",
   "/zapped": "zapped",
+  "/most-zapped": "zapped",
   "/following": "following",
 };
 
@@ -74,7 +75,7 @@ const AppRoutes = () => {
       <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {["/", "/trending", "/zapped", "/following"].map((path) => (
+          {["/", "/trending", "/zapped", "/most-zapped", "/following"].map((path) => (
             <Route
               key={path}
               path={path}

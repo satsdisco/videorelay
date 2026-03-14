@@ -6,6 +6,7 @@ import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { probeVideo, getCachedMeta, type VideoMeta } from "@/lib/durationProbe";
 import { getCachedPoster } from "@/lib/posterCache";
 import { useToast } from "@/hooks/use-toast";
+import { isNsfw, getNsfwBlurEnabled } from "@/lib/nsfw";
 import type { Event } from "nostr-tools";
 
 // Global mute state shared across all shorts
@@ -246,6 +247,13 @@ const Shorts = () => {
           const dur = meta?.duration || v.durationSeconds;
           return dur > 0 && dur <= 60;
         });
+
+        // Filter out NSFW from autoplay feed
+        if (getNsfwBlurEnabled()) {
+          filtered = filtered.filter(v => !isNsfw({
+            title: v.title, summary: v.summary, tags: v.tags, rawTags: v.rawEvent?.tags,
+          }));
+        }
 
         // Shuffle
         for (let i = filtered.length - 1; i > 0; i--) {

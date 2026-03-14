@@ -9,6 +9,7 @@ import { getFallbackThumb } from "@/lib/fallbackThumb";
 import { hasWatched } from "@/lib/viewTracker";
 import { getCachedPoster, extractPoster } from "@/lib/posterCache";
 import { getCachedDuration, probeDuration, formatDurationSecs } from "@/lib/durationProbe";
+import { isNsfw, getNsfwBlurEnabled } from "@/lib/nsfw";
 
 interface VideoCardProps {
   video: ParsedVideo;
@@ -56,6 +57,17 @@ const VideoCard = ({ video, cachedProfile }: VideoCardProps) => {
     ? (probedDuration ? formatDurationSecs(probedDuration) : "")
     : video.duration;
 
+  // NSFW detection
+  const nsfwDetected = isNsfw({
+    title: video.title,
+    summary: video.summary,
+    tags: video.tags,
+    rawTags: video.rawEvent?.tags,
+  });
+  const blurEnabled = getNsfwBlurEnabled();
+  const shouldBlur = nsfwDetected && blurEnabled;
+  const [nsfwRevealed, setNsfwRevealed] = useState(false);
+
   return (
     <div
       className="group cursor-pointer"
@@ -87,6 +99,17 @@ const VideoCard = ({ video, cachedProfile }: VideoCardProps) => {
           <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 bg-background/80 rounded text-[10px] font-medium text-muted-foreground backdrop-blur-sm">
             <Eye className="w-3 h-3" />
             Watched
+          </div>
+        )}
+        {/* NSFW blur overlay */}
+        {shouldBlur && !nsfwRevealed && (
+          <div
+            className="absolute inset-0 backdrop-blur-xl bg-background/40 flex flex-col items-center justify-center z-10"
+            onClick={(e) => { e.stopPropagation(); setNsfwRevealed(true); }}
+          >
+            <span className="text-lg mb-1">🔞</span>
+            <span className="text-xs font-medium text-foreground/80">Sensitive content</span>
+            <span className="text-[10px] text-muted-foreground mt-0.5">Click to reveal</span>
           </div>
         )}
         {/* Hover overlay */}
