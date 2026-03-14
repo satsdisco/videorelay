@@ -71,33 +71,30 @@ function saveCachedEvents(videos: ParsedVideo[]) {
 async function queryRelaysIndependently(
   relays: string[],
   filter: Filter,
-  timeoutMs = 8000,
+  timeoutMs = 10000,
 ): Promise<Event[]> {
   const pool = getPool();
   const allEvents: Event[] = [];
   const seen = new Set<string>();
 
-  // Split relays into groups for parallel querying
-  // Query aggregator relays (nostr.band, primal) with higher limits
-  const promises = relays.map(async (relay) => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-      const events = await pool.querySync([relay], filter);
-      clearTimeout(timeout);
-
-      for (const e of events) {
-        if (!seen.has(e.id)) {
-          seen.add(e.id);
-          allEvents.push(e);
-        }
+  const addEvents = (events: Event[]) => {
+    for (const e of events) {
+      if (!seen.has(e.id)) {
+        seen.add(e.id);
+        allEvents.push(e);
       }
-    } catch {
-      // Relay timed out or failed — that's fine, move on
     }
-  });
+  };
 
+  // Query each relay independently with a per-relay timeout
+  const promises = relays.map((relay) =>
+    Promise.race([
+      pool.querySync([relay], filter).then(addEvents),
+      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+    ]).catch(() => {})
+  );
+
+  // Wait for all to complete (or timeout)
   await Promise.allSettled(promises);
   return allEvents;
 }
@@ -233,14 +230,15 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
         return;
       }
 
-      // Show cached results immediately while fresh data loads
+      // Load cache for instant display while fetching fresh data
       const cached = loadCachedEvents();
-      if (cached.length > 0 && !stableAuthors && !hashtag && !search) {
+      const isDefaultFetch = !stableAuthors && !hashtag && !search;
+      if (cached.length > 0 && isDefaultFetch) {
         setVideos(sortVideos(cached));
         setLoading(false); // Show content immediately
       }
 
-      // Multi-strategy fetch: query relays independently for better coverage
+      // Fetch fresh data from all relays (waits for all with 10s timeout each)
       const filter = buildFilter(undefined, limit);
       const events = await queryRelaysIndependently(stableRelays, filter);
 
@@ -248,29 +246,37 @@ export function useNostrVideos(options: UseNostrVideosOptions = {}) {
         .map(parseVideoEvent)
         .filter((v): v is ParsedVideo => v !== null);
 
-      const deduped = dedupeVideos(parsed);
+      let deduped = dedupeVideos(parsed);
+
+      // Merge with cache — never show fewer results than we had
+      if (isDefaultFetch && cached.length > 0) {
+        const freshIds = new Set(deduped.map(v => v.id));
+        const cachedExtras = cached.filter(v => !freshIds.has(v.id));
+        if (cachedExtras.length > 0) {
+          deduped = dedupeVideos([...deduped, ...cachedExtras]);
+        }
+      }
+
       cacheVideos(deduped);
       allFetchedRef.current = deduped;
 
       if (deduped.length > 0) {
         oldestTimestamp.current = Math.min(...deduped.map((v) => v.publishedAt));
       }
-      if (deduped.length < limit) {
+      if (parsed.length < limit) {
         setHasMore(false);
       }
 
-      // Show immediately, fetch zap counts in background
       setVideos(sortVideos(deduped));
 
-      // Persist to localStorage for instant next visit
-      if (!stableAuthors && !hashtag && !search) {
+      if (isDefaultFetch) {
         saveCachedEvents(deduped);
       }
 
       // Background: fetch zap counts then re-sort
       fetchZapCounts(deduped).then(() => {
         setVideos(prev => sortVideos([...prev]));
-        if (!stableAuthors && !hashtag && !search) {
+        if (isDefaultFetch) {
           saveCachedEvents(deduped);
         }
       });

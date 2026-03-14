@@ -172,10 +172,15 @@ const Live = () => {
             <span className="text-sm">Scanning relays for live streams...</span>
           </div>
         ) : streams.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="text-center py-16 max-w-md mx-auto">
             <Radio className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-lg font-semibold text-foreground mb-2">No one is live right now</h2>
-            <p className="text-sm text-muted-foreground">Check back later or start your own stream.</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Live streams use NIP-53 (kind 30311) events. When creators go live on Nostr, their streams will appear here automatically.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Try streaming with <a href="https://zap.stream" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">zap.stream</a> — it broadcasts NIP-53 events that VideoRelay picks up.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
