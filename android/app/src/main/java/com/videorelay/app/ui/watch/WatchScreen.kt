@@ -1,5 +1,6 @@
 package com.videorelay.app.ui.watch
 
+import android.content.Intent
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.clickable
@@ -174,7 +175,16 @@ fun WatchScreen(
                                 // TODO: zap flow
                             }
                             ActionButton(Icons.Filled.Share, "Share") {
-                                // TODO: share intent
+                                val shareText = "${video.title}\n\nhttps://videorelay.lol/watch/${video.id}"
+                                val shareIntent = Intent.createChooser(
+                                    Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, shareText)
+                                        putExtra(Intent.EXTRA_SUBJECT, video.title)
+                                    },
+                                    "Share video"
+                                )
+                                context.startActivity(shareIntent)
                             }
                             ActionButton(Icons.Filled.Download, "Save") {
                                 // TODO: download

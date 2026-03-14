@@ -2,16 +2,19 @@ package com.videorelay.app.data.nostr
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * NIP-55 signer using Amber (Android Nostr Signer).
- * Communicates via Android intents.
+ * NIP-55 signer using Amber (or any Android Nostr Signer).
+ * Uses the nostrsigner: URI scheme as specified in NIP-55.
  *
- * Amber package: com.greenart7c3.nostrsigner
+ * Flow:
+ * 1. Create intent with nostrsigner: scheme
+ * 2. Launch with ActivityResultLauncher
+ * 3. Read result from intent extras
  */
 @Singleton
 class AmberSigner @Inject constructor(
@@ -20,50 +23,61 @@ class AmberSigner @Inject constructor(
 
     companion object {
         const val AMBER_PACKAGE = "com.greenart7c3.nostrsigner"
-        const val ACTION_SIGN_EVENT = "com.greenart7c3.nostrsigner.SIGN_EVENT"
-        const val ACTION_GET_PUBLIC_KEY = "com.greenart7c3.nostrsigner.GET_PUBLIC_KEY"
     }
 
     private var _publicKey: String? = null
+    private var _signerPackage: String? = null
+
     override val publicKey: String? get() = _publicKey
 
+    /**
+     * Check if any NIP-55 signer is installed by querying the nostrsigner: scheme.
+     */
     override suspend fun isAvailable(): Boolean {
-        // Method 1: Direct package check
-        try {
-            context.packageManager.getPackageInfo(AMBER_PACKAGE, 0)
-            return true
-        } catch (_: PackageManager.NameNotFoundException) {}
-
-        // Method 2: Check if any app can handle our intent (works with <queries>)
         return try {
-            val intent = Intent(ACTION_GET_PUBLIC_KEY).apply {
-                `package` = AMBER_PACKAGE
-            }
-            context.packageManager.resolveActivity(intent, 0) != null
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("nostrsigner:"))
+            val infos = context.packageManager.queryIntentActivities(intent, 0)
+            infos.size > 0
         } catch (_: Exception) {
             false
         }
     }
 
     /**
-     * Create an intent to request the user's public key from Amber.
-     * The calling activity should launch this with startActivityForResult.
+     * Create the NIP-55 get_public_key intent.
+     * Launch this with rememberLauncherForActivityResult.
      */
     fun getPublicKeyIntent(): Intent {
-        return Intent(ACTION_GET_PUBLIC_KEY).apply {
-            `package` = AMBER_PACKAGE
+        return Intent(Intent.ACTION_VIEW, Uri.parse("nostrsigner:")).apply {
+            putExtra("type", "get_public_key")
+            // Request permissions for signing video-related events
+            putExtra("permissions", """[{"type":"sign_event","kind":1},{"type":"sign_event","kind":7},{"type":"sign_event","kind":9734},{"type":"sign_event","kind":1111}]""")
         }
     }
 
     /**
-     * Create an intent to sign an event with Amber.
-     * The calling activity should launch this with startActivityForResult.
+     * Create a NIP-55 sign_event intent.
      */
-    fun getSignEventIntent(eventJson: String): Intent {
-        return Intent(ACTION_SIGN_EVENT).apply {
-            `package` = AMBER_PACKAGE
-            putExtra("event", eventJson)
+    fun getSignEventIntent(eventJson: String, eventId: String): Intent {
+        return Intent(Intent.ACTION_VIEW, Uri.parse("nostrsigner:$eventJson")).apply {
+            `package` = _signerPackage ?: AMBER_PACKAGE
+            putExtra("type", "sign_event")
+            putExtra("id", eventId)
+            _publicKey?.let { putExtra("current_user", it) }
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
+    }
+
+    /**
+     * Handle the result from get_public_key.
+     * Call this from the ActivityResult callback.
+     */
+    fun handleGetPublicKeyResult(resultIntent: Intent?): String? {
+        val pubkey = resultIntent?.getStringExtra("result") ?: return null
+        val signerPackage = resultIntent.getStringExtra("package")
+        _publicKey = pubkey
+        _signerPackage = signerPackage ?: AMBER_PACKAGE
+        return pubkey
     }
 
     fun setPublicKey(pubkey: String) {
@@ -71,8 +85,7 @@ class AmberSigner @Inject constructor(
     }
 
     override suspend fun sign(event: UnsignedEvent): NostrEvent? {
-        // Amber signing is intent-based and handled by the Activity.
-        // This method is a placeholder — real signing goes through getSignEventIntent().
+        // NIP-55 signing is intent-based — handled by Activity
         return null
     }
 }

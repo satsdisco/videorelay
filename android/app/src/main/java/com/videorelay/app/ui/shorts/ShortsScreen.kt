@@ -2,6 +2,7 @@ package com.videorelay.app.ui.shorts
 
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -222,7 +223,18 @@ fun ShortsScreen(
                 ) {
                     ShortActionButton(Icons.Filled.ElectricBolt, formatZapCount(short.zapCount)) {}
                     ShortActionButton(Icons.Filled.ChatBubble, "") {}
-                    ShortActionButton(Icons.Filled.Share, "Share") {}
+                    ShortActionButton(Icons.Filled.Share, "Share") {
+                        val shareText = "${short.title}\n\nhttps://videorelay.lol/watch/${short.id}"
+                        val shareIntent = Intent.createChooser(
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, shareText)
+                                putExtra(Intent.EXTRA_SUBJECT, short.title)
+                            },
+                            "Share video"
+                        )
+                        context.startActivity(shareIntent)
+                    }
                     ShortActionButton(Icons.Filled.Refresh, "New") {
                         viewModel.refresh()
                     }

@@ -3,6 +3,7 @@ package com.videorelay.app.ui.settings
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -37,18 +38,19 @@ fun SettingsScreen(
     var newRelayUrl by remember { mutableStateOf("") }
     var showLoginDialog by remember { mutableStateOf(false) }
 
-    // Amber ActivityResult launcher
+    // NIP-55 ActivityResult launcher
     val amberLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val pubkey = result.data?.getStringExtra("signature")
-                ?: result.data?.getStringExtra("pubkey")
-                ?: result.data?.getStringExtra("result")
+            val pubkey = result.data?.getStringExtra("result")
             if (pubkey != null) {
                 viewModel.onAmberResult(pubkey)
                 showLoginDialog = false
+                Toast.makeText(context, "Signed in!", Toast.LENGTH_SHORT).show()
             }
+        } else {
+            Toast.makeText(context, "Sign-in was rejected or cancelled", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -360,13 +362,13 @@ fun SettingsScreen(
             onLoginBunker = { viewModel.loginWithBunker(it) },
             onLoginAmber = {
                 try {
-                    val intent = Intent("com.greenart7c3.nostrsigner.GET_PUBLIC_KEY").apply {
-                        `package` = "com.greenart7c3.nostrsigner"
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("nostrsigner:")).apply {
                         putExtra("type", "get_public_key")
+                        putExtra("permissions", """[{"type":"sign_event","kind":1},{"type":"sign_event","kind":7},{"type":"sign_event","kind":9734}]""")
                     }
                     amberLauncher.launch(intent)
                 } catch (e: Exception) {
-                    // Amber failed to launch
+                    Toast.makeText(context, "Failed to open signer: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             },
             onDismiss = { showLoginDialog = false },

@@ -7,10 +7,14 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
 
-    <!-- Package visibility: Amber (NIP-55) signer + Lightning wallets -->
+    <!-- Package visibility: NIP-55 signers (Amber etc.) + Lightning wallets -->
     <queries>
         <package android:name="com.greenart7c3.nostrsigner" />
-        <!-- Common Lightning wallets for zap intents -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="nostrsigner" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="lightning" />
