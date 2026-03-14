@@ -21,7 +21,7 @@ import { DEFAULT_RELAYS } from "@/lib/nostr";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getCuratedCreators, addCuratedCreator, removeCuratedCreator, npubToHex, type CuratedCreator } from "@/lib/curatedCreators";
+import { getCuratedCreators, addCuratedCreator, removeCuratedCreator, npubToHex, ADMIN_PUBKEYS, type CuratedCreator } from "@/lib/curatedCreators";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { Star, UserPlus as UserPlusIcon } from "lucide-react";
 
@@ -382,6 +382,7 @@ const Settings = () => {
   const navigate = useNavigate();
   const { isLoggedIn, pubkey, profile } = useNostrAuth();
   const [prefs, setPrefs] = useState<Preferences>(loadPrefs);
+  const isAdmin = !!(pubkey && ADMIN_PUBKEYS.has(pubkey));
 
   return (
     <div className="min-h-screen bg-background">
@@ -429,10 +430,12 @@ const Settings = () => {
               <Shield className="w-4 h-4" />
               <span className="hidden sm:inline">Content</span>
             </TabsTrigger>
-            <TabsTrigger value="admin" className="flex-1 gap-1.5 py-2 rounded-lg data-[state=active]:bg-background">
-              <Star className="w-4 h-4" />
-              <span className="hidden sm:inline">Curate</span>
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="admin" className="flex-1 gap-1.5 py-2 rounded-lg data-[state=active]:bg-background">
+                <Star className="w-4 h-4" />
+                <span className="hidden sm:inline">Curate</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <div className="mt-6">
@@ -445,9 +448,11 @@ const Settings = () => {
             <TabsContent value="content">
               <ContentSettings prefs={prefs} setPrefs={setPrefs} />
             </TabsContent>
-            <TabsContent value="admin">
-              <CuratedCreatorsSettings />
-            </TabsContent>
+            {isAdmin && (
+              <TabsContent value="admin">
+                <CuratedCreatorsSettings />
+              </TabsContent>
+            )}
           </div>
         </Tabs>
 

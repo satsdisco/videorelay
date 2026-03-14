@@ -2,6 +2,7 @@
  * Probe real video duration by loading metadata in an offscreen video element.
  * Results cached in localStorage so we only probe each URL once.
  */
+import { safeSetItem, safeGetItem } from "./safeStorage";
 
 const CACHE_KEY = "videorelay_durations";
 const memCache = new Map<string, number>();
@@ -9,7 +10,7 @@ const pending = new Map<string, Promise<number | null>>();
 
 // Load from localStorage
 try {
-  const stored = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+  const stored = JSON.parse(safeGetItem(CACHE_KEY) || "{}");
   for (const [k, v] of Object.entries(stored)) {
     if (typeof v === "number") memCache.set(k, v);
   }
@@ -18,7 +19,7 @@ try {
 function persist() {
   try {
     const entries = [...memCache.entries()].slice(-500);
-    localStorage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+    safeSetItem(CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
   } catch {}
 }
 
@@ -39,7 +40,7 @@ const META_CACHE_KEY = "videorelay_vmeta";
 
 // Load meta cache
 try {
-  const stored = JSON.parse(localStorage.getItem(META_CACHE_KEY) || "{}");
+  const stored = JSON.parse(safeGetItem(META_CACHE_KEY) || "{}");
   for (const [k, v] of Object.entries(stored)) {
     if (v && typeof v === "object") metaCache.set(k, v as VideoMeta);
   }
@@ -48,7 +49,7 @@ try {
 function persistMeta() {
   try {
     const entries = [...metaCache.entries()].slice(-500);
-    localStorage.setItem(META_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+    safeSetItem(META_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
   } catch {}
 }
 

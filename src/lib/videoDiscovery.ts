@@ -1,5 +1,6 @@
 import { getPool, parseVideoEvent, type ParsedVideo, ALL_VIDEO_KINDS } from "./nostr";
 import type { Filter, Event } from "nostr-tools";
+import { safeSetItem, safeGetItem } from "./safeStorage";
 
 // Aggregator relays that index the broadest content
 const DISCOVERY_RELAYS = [
@@ -32,7 +33,7 @@ let cacheTimestamp = 0;
 
 function loadEngagementCache() {
   try {
-    const raw = localStorage.getItem(ENGAGEMENT_CACHE_KEY);
+    const raw = safeGetItem(ENGAGEMENT_CACHE_KEY);
     if (!raw) return;
     const { data, timestamp } = JSON.parse(raw);
     if (Date.now() - timestamp > ENGAGEMENT_CACHE_TTL) return;
@@ -45,7 +46,7 @@ function saveEngagementCache() {
   try {
     const obj: Record<string, EngagementScore> = {};
     engagementCache.forEach((v, k) => { obj[k] = v; });
-    localStorage.setItem(ENGAGEMENT_CACHE_KEY, JSON.stringify({
+    safeSetItem(ENGAGEMENT_CACHE_KEY, JSON.stringify({
       data: obj,
       timestamp: Date.now(),
     }));

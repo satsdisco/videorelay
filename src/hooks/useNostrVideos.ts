@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, type ParsedVideo, ALL_VIDEO_KINDS } from "@/lib/nostr";
+import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 import { cacheVideos } from "@/lib/videoCache";
 import type { Filter, Event } from "nostr-tools";
 
@@ -43,7 +44,7 @@ const CACHE_MAX_AGE = 1000 * 60 * 30; // 30 minutes
 
 function loadCachedEvents(): ParsedVideo[] {
   try {
-    const raw = localStorage.getItem(VIDEO_CACHE_KEY);
+    const raw = safeGetItem(VIDEO_CACHE_KEY);
     if (!raw) return [];
     const { videos, timestamp } = JSON.parse(raw);
     if (Date.now() - timestamp > CACHE_MAX_AGE) return [];
@@ -57,7 +58,7 @@ function saveCachedEvents(videos: ParsedVideo[]) {
   try {
     // Only cache the most recent 500 to keep storage reasonable
     const trimmed = videos.slice(0, 500);
-    localStorage.setItem(VIDEO_CACHE_KEY, JSON.stringify({
+    safeSetItem(VIDEO_CACHE_KEY, JSON.stringify({
       videos: trimmed,
       timestamp: Date.now(),
     }));

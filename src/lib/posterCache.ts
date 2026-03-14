@@ -3,6 +3,7 @@
  * and capturing a canvas frame at 1 second in.
  * Results are cached in memory and localStorage.
  */
+import { safeSetItem, safeGetItem } from "./safeStorage";
 
 const CACHE_KEY = "videorelay_posters";
 const memoryCache = new Map<string, string>();
@@ -10,7 +11,7 @@ const pendingFetches = new Map<string, Promise<string | null>>();
 
 // Load persistent cache
 try {
-  const stored = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+  const stored = JSON.parse(safeGetItem(CACHE_KEY) || "{}");
   for (const [k, v] of Object.entries(stored)) {
     if (typeof v === "string") memoryCache.set(k, v);
   }
@@ -20,7 +21,7 @@ function persistCache() {
   try {
     // Only keep last 200 entries
     const entries = [...memoryCache.entries()].slice(-200);
-    localStorage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+    safeSetItem(CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
   } catch {}
 }
 

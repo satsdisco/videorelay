@@ -2,6 +2,7 @@
  * Local view tracking — tracks which videos you've watched.
  * Stored in localStorage, no network calls.
  */
+import { safeSetItem, safeGetItem } from "./safeStorage";
 
 const STORAGE_KEY = "videorelay_views";
 
@@ -11,7 +12,7 @@ interface ViewRecord {
 
 function loadViews(): ViewRecord {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    return JSON.parse(safeGetItem(STORAGE_KEY) || "{}");
   } catch {
     return {};
   }
@@ -19,7 +20,7 @@ function loadViews(): ViewRecord {
 
 function saveViews(views: ViewRecord) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(views));
+    safeSetItem(STORAGE_KEY, JSON.stringify(views));
   } catch {}
 }
 

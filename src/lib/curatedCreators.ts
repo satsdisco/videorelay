@@ -4,7 +4,14 @@
  * Stored in localStorage, managed via Settings > Admin panel.
  */
 
+import { safeSetItem, safeGetItem } from "./safeStorage";
+
 const CURATED_KEY = "videorelay_curated_creators";
+
+/** Admin pubkeys — only these users can see and manage the Curate tab */
+export const ADMIN_PUBKEYS = new Set([
+  "47276eb163fc54b3733930ab5cfd5fa94687a1953871a873ad4faee91e8a5f38", // satsdisco
+]);
 
 export interface CuratedCreator {
   pubkey: string;
@@ -23,7 +30,7 @@ const SEED_CREATORS: CuratedCreator[] = [
 
 export function getCuratedCreators(): CuratedCreator[] {
   try {
-    const raw = localStorage.getItem(CURATED_KEY);
+    const raw = safeGetItem(CURATED_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
   // First visit — seed with defaults
@@ -32,7 +39,7 @@ export function getCuratedCreators(): CuratedCreator[] {
 }
 
 export function saveCuratedCreators(creators: CuratedCreator[]): void {
-  localStorage.setItem(CURATED_KEY, JSON.stringify(creators));
+  safeSetItem(CURATED_KEY, JSON.stringify(creators));
 }
 
 export function addCuratedCreator(pubkey: string, label?: string): void {
