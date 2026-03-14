@@ -28,10 +28,19 @@ class AmberSigner @Inject constructor(
     override val publicKey: String? get() = _publicKey
 
     override suspend fun isAvailable(): Boolean {
-        return try {
+        // Method 1: Direct package check
+        try {
             context.packageManager.getPackageInfo(AMBER_PACKAGE, 0)
-            true
-        } catch (e: PackageManager.NameNotFoundException) {
+            return true
+        } catch (_: PackageManager.NameNotFoundException) {}
+
+        // Method 2: Check if any app can handle our intent (works with <queries>)
+        return try {
+            val intent = Intent(ACTION_GET_PUBLIC_KEY).apply {
+                `package` = AMBER_PACKAGE
+            }
+            context.packageManager.resolveActivity(intent, 0) != null
+        } catch (_: Exception) {
             false
         }
     }

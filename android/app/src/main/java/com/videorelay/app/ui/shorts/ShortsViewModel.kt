@@ -17,6 +17,7 @@ data class ShortsUiState(
     val shorts: List<Video> = emptyList(),
     val profiles: Map<String, Profile> = emptyMap(),
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val currentIndex: Int = 0,
 )
 
@@ -29,21 +30,48 @@ class ShortsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ShortsUiState())
     val uiState: StateFlow<ShortsUiState> = _uiState.asStateFlow()
 
+    private val seenIds = mutableSetOf<String>()
+    private var lastTimestamp: Long? = null
+
     init {
         loadShorts()
     }
 
     fun setCurrentIndex(index: Int) {
         _uiState.value = _uiState.value.copy(currentIndex = index)
+        // Auto-load more when near the end
+        val shorts = _uiState.value.shorts
+        if (index >= shorts.size - 3 && shorts.isNotEmpty()) {
+            loadMore()
+        }
+    }
+
+    fun refresh() {
+        seenIds.clear()
+        lastTimestamp = null
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isRefreshing = true)
+            try {
+                val shorts = fetchAndDedupe()
+                val pubkeys = shorts.map { it.pubkey }.distinct()
+                val profiles = profileRepository.getProfiles(pubkeys)
+
+                _uiState.value = ShortsUiState(
+                    shorts = shorts,
+                    profiles = profiles,
+                    isLoading = false,
+                    isRefreshing = false,
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isRefreshing = false)
+            }
+        }
     }
 
     private fun loadShorts() {
         viewModelScope.launch {
             try {
-                val shorts = videoRepository.fetchVideos(limit = 100)
-                    .filter { it.isShort }
-                    .shuffled()
-
+                val shorts = fetchAndDedupe()
                 val pubkeys = shorts.map { it.pubkey }.distinct()
                 val profiles = profileRepository.getProfiles(pubkeys)
 
@@ -56,5 +84,61 @@ class ShortsViewModel @Inject constructor(
                 _uiState.value = ShortsUiState(isLoading = false)
             }
         }
+    }
+
+    private fun loadMore() {
+        val current = _uiState.value
+        if (current.isRefreshing) return
+
+        viewModelScope.launch {
+            try {
+                val moreShorts = fetchAndDedupe()
+                if (moreShorts.isEmpty()) return@launch
+
+                val allShorts = current.shorts + moreShorts
+                val newPubkeys = moreShorts.map { it.pubkey }.distinct()
+                    .filter { it !in current.profiles }
+                val newProfiles = if (newPubkeys.isNotEmpty()) {
+                    profileRepository.getProfiles(newPubkeys)
+                } else emptyMap()
+
+                _uiState.value = current.copy(
+                    shorts = allShorts,
+                    profiles = current.profiles + newProfiles,
+                )
+            } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Fetch shorts with diversity:
+     * - Limit per author (max 3 per fetch) to avoid one person dominating
+     * - Shuffle result for variety
+     * - Track seen IDs to avoid repeats across loads
+     */
+    private suspend fun fetchAndDedupe(): List<Video> {
+        val allVideos = videoRepository.fetchVideos(
+            limit = 200,
+            until = lastTimestamp,
+        )
+
+        val shorts = allVideos
+            .filter { it.isShort && it.id !in seenIds }
+
+        // Limit per author — max 3 per load to ensure diversity
+        val diverse = shorts
+            .groupBy { it.pubkey }
+            .flatMap { (_, videos) -> videos.take(3) }
+            .shuffled()
+
+        // Track what we've shown
+        diverse.forEach { seenIds.add(it.id) }
+
+        // Update pagination cursor
+        if (shorts.isNotEmpty()) {
+            lastTimestamp = shorts.minOf { it.publishedAt }
+        }
+
+        return diverse
     }
 }

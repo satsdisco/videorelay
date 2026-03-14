@@ -28,10 +28,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.videorelay.app.ui.components.LoadingScreen
 import com.videorelay.app.ui.components.formatZapCount
 import com.videorelay.app.ui.components.timeAgo
+import com.videorelay.app.ui.theme.VRPurple
 
 @Composable
 fun ShortsScreen(
@@ -47,8 +49,23 @@ fun ShortsScreen(
     }
 
     if (uiState.shorts.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No shorts found", style = MaterialTheme.typography.bodyLarge)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "No shorts found",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                TextButton(onClick = { viewModel.refresh() }) {
+                    Text("Refresh")
+                }
+            }
         }
         return
     }
@@ -60,125 +77,169 @@ fun ShortsScreen(
         viewModel.setCurrentIndex(pagerState.currentPage)
     }
 
-    VerticalPager(
-        state = pagerState,
-        modifier = Modifier.fillMaxSize(),
-    ) { page ->
-        val short = uiState.shorts[page]
-        val profile = uiState.profiles[short.pubkey]
-        val isCurrentPage = pagerState.currentPage == page
+    Box(modifier = Modifier.fillMaxSize()) {
+        VerticalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+        ) { page ->
+            val short = uiState.shorts[page]
+            val profile = uiState.profiles[short.pubkey]
+            val isCurrentPage = pagerState.currentPage == page
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Video player
-            val player = remember {
-                ExoPlayer.Builder(context).build().apply {
-                    repeatMode = Player.REPEAT_MODE_ONE
-                    volume = 1f
-                }
-            }
-
-            LaunchedEffect(short.videoUrl, isCurrentPage) {
-                if (isCurrentPage) {
-                    player.setMediaItem(MediaItem.fromUri(short.videoUrl))
-                    player.prepare()
-                    player.playWhenReady = true
-                } else {
-                    player.pause()
-                }
-            }
-
-            DisposableEffect(Unit) {
-                onDispose { player.release() }
-            }
-
-            AndroidView(
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        this.player = player
-                        useController = false
-                        layoutParams = FrameLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
-
-            // Bottom gradient overlay
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
-                        )
-                    ),
-            )
-
-            // Bottom info
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp)
-                    .padding(bottom = 16.dp),
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
             ) {
-                // Creator
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onChannelClick(short.pubkey) },
-                ) {
-                    AsyncImage(
-                        model = profile?.picture,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = profile?.bestName ?: short.pubkey.take(8) + "...",
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.titleSmall,
-                    )
+                // Video player
+                val player = remember {
+                    ExoPlayer.Builder(context).build().apply {
+                        repeatMode = Player.REPEAT_MODE_ONE
+                        volume = 1f
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                LaunchedEffect(short.videoUrl, isCurrentPage) {
+                    if (isCurrentPage) {
+                        player.setMediaItem(MediaItem.fromUri(short.videoUrl))
+                        player.prepare()
+                        player.playWhenReady = true
+                    } else {
+                        player.pause()
+                    }
+                }
 
-                Text(
-                    text = short.title,
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                DisposableEffect(Unit) {
+                    onDispose { player.release() }
+                }
+
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply {
+                            this.player = player
+                            useController = false
+                            layoutParams = FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
                 )
 
-                if (short.tags.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                // Bottom gradient overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                            )
+                        ),
+                )
+
+                // Bottom info
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp)
+                        .padding(bottom = 16.dp),
+                ) {
+                    // Creator
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onChannelClick(short.pubkey) },
+                    ) {
+                        SubcomposeAsyncImage(
+                            model = profile?.picture?.ifBlank { null }?.let {
+                                ImageRequest.Builder(context).data(it).crossfade(true).build()
+                            },
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape),
+                            error = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(VRPurple.copy(alpha = 0.3f)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = (profile?.bestName ?: "?").first().uppercase(),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color.White,
+                                    )
+                                }
+                            },
+                            loading = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(VRPurple.copy(alpha = 0.3f)),
+                                )
+                            },
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = profile?.bestName ?: short.pubkey.take(8) + "...",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     Text(
-                        text = short.tags.take(3).joinToString(" ") { "#$it" },
-                        color = Color.White.copy(alpha = 0.7f),
-                        style = MaterialTheme.typography.bodySmall,
+                        text = short.title,
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
+
+                    if (short.tags.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = short.tags.take(3).joinToString(" ") { "#$it" },
+                            color = Color.White.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+
+                // Right-side action buttons
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    ShortActionButton(Icons.Filled.ElectricBolt, formatZapCount(short.zapCount)) {}
+                    ShortActionButton(Icons.Filled.ChatBubble, "") {}
+                    ShortActionButton(Icons.Filled.Share, "Share") {}
+                    ShortActionButton(Icons.Filled.Refresh, "New") {
+                        viewModel.refresh()
+                    }
                 }
             }
+        }
 
-            // Right-side action buttons
-            Column(
+        // Refresh indicator
+        if (uiState.isRefreshing) {
+            CircularProgressIndicator(
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-            ) {
-                ShortActionButton(Icons.Filled.ElectricBolt, formatZapCount(short.zapCount)) {}
-                ShortActionButton(Icons.Filled.ChatBubble, "") {}
-                ShortActionButton(Icons.Filled.Share, "Share") {}
-            }
+                    .align(Alignment.TopCenter)
+                    .padding(top = 48.dp)
+                    .size(24.dp),
+                strokeWidth = 2.dp,
+                color = VRPurple,
+            )
         }
     }
 }
