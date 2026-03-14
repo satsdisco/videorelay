@@ -1,20 +1,20 @@
 import { SimplePool, type Filter, type Event } from "nostr-tools";
 
-// Default relays — discovery relays first (index everything), then video-focused, then popular
+// Default relays — ordered by video content availability (tested March 2026)
+// nostr.band, flare.pub, video.nostr.build, purplepag.es return 0 video events
 export const DEFAULT_RELAYS = [
-  // Discovery/aggregator relays — index events from thousands of relays
-  "wss://relay.nostr.band",
+  // Best for video content (200+ video events each)
   "wss://relay.damus.io",
-  "wss://relay.primal.net",
-  // Video-focused relays
-  "wss://relay.flare.pub",
-  "wss://video.nostr.build",
-  // Popular general relays
   "wss://nos.lol",
+  "wss://relay.primal.net",
   "wss://relay.snort.social",
   "wss://nostr.wine",
-  "wss://purplepag.es",
   "wss://offchain.pub",
+  "wss://nostr21.com",
+  // Profile/metadata lookup
+  "wss://purplepag.es",
+  // Discovery (for NIP-50 search, not video kinds)
+  "wss://relay.nostr.band",
 ];
 
 // Video event kinds per NIP-71

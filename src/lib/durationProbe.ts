@@ -27,17 +27,47 @@ export function getCachedDuration(videoId: string): number | null {
   return memCache.get(videoId) ?? null;
 }
 
-/** Probe a video URL for its duration. Returns seconds or null on failure. */
-export function probeDuration(videoId: string, videoUrl: string): Promise<number | null> {
-  if (memCache.has(videoId)) return Promise.resolve(memCache.get(videoId)!);
+export interface VideoMeta {
+  duration: number; // seconds
+  width: number;
+  height: number;
+  isVertical: boolean;
+}
 
-  // Skip HLS — can't probe m3u8 this way
+const metaCache = new Map<string, VideoMeta>();
+const META_CACHE_KEY = "videorelay_vmeta";
+
+// Load meta cache
+try {
+  const stored = JSON.parse(localStorage.getItem(META_CACHE_KEY) || "{}");
+  for (const [k, v] of Object.entries(stored)) {
+    if (v && typeof v === "object") metaCache.set(k, v as VideoMeta);
+  }
+} catch {}
+
+function persistMeta() {
+  try {
+    const entries = [...metaCache.entries()].slice(-500);
+    localStorage.setItem(META_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch {}
+}
+
+/** Get cached full metadata */
+export function getCachedMeta(videoId: string): VideoMeta | null {
+  return metaCache.get(videoId) ?? null;
+}
+
+/** Probe a video URL for duration AND dimensions. */
+export function probeVideo(videoId: string, videoUrl: string): Promise<VideoMeta | null> {
+  if (metaCache.has(videoId)) return Promise.resolve(metaCache.get(videoId)!);
+
+  // Skip HLS
   if (videoUrl.includes(".m3u8")) return Promise.resolve(null);
 
   const existing = pending.get(videoId);
-  if (existing) return existing;
+  if (existing) return existing as Promise<VideoMeta | null>;
 
-  const promise = new Promise<number | null>((resolve) => {
+  const promise = new Promise<VideoMeta | null>((resolve) => {
     const video = document.createElement("video");
     video.preload = "metadata";
     video.muted = true;
@@ -45,7 +75,7 @@ export function probeDuration(videoId: string, videoUrl: string): Promise<number
     const timeout = setTimeout(() => {
       cleanup();
       resolve(null);
-    }, 6000);
+    }, 8000);
 
     const cleanup = () => {
       video.removeAttribute("src");
@@ -55,12 +85,23 @@ export function probeDuration(videoId: string, videoUrl: string): Promise<number
 
     video.onloadedmetadata = () => {
       const dur = video.duration;
+      const w = video.videoWidth;
+      const h = video.videoHeight;
       clearTimeout(timeout);
       cleanup();
+
       if (dur && isFinite(dur) && dur > 0) {
+        const meta: VideoMeta = {
+          duration: Math.round(dur),
+          width: w,
+          height: h,
+          isVertical: h > w,
+        };
         memCache.set(videoId, Math.round(dur));
+        metaCache.set(videoId, meta);
         persist();
-        resolve(Math.round(dur));
+        persistMeta();
+        resolve(meta);
       } else {
         resolve(null);
       }
@@ -75,8 +116,13 @@ export function probeDuration(videoId: string, videoUrl: string): Promise<number
     video.src = videoUrl;
   });
 
-  pending.set(videoId, promise);
+  pending.set(videoId, promise as Promise<number | null>);
   return promise;
+}
+
+/** Legacy: probe just duration */
+export function probeDuration(videoId: string, videoUrl: string): Promise<number | null> {
+  return probeVideo(videoId, videoUrl).then(m => m?.duration ?? null);
 }
 
 /** Format seconds into human-readable duration */

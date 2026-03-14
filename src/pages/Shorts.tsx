@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Zap, Share2, MessageSquare, User } from "lucide-react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo, ALL_VIDEO_KINDS } from "@/lib/nostr";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
-import { probeDuration, getCachedDuration } from "@/lib/durationProbe";
+import { probeVideo, getCachedMeta, type VideoMeta } from "@/lib/durationProbe";
 import type { Event } from "nostr-tools";
 
 const ShortVideoItem = ({
@@ -129,18 +129,17 @@ const Shorts = () => {
       try {
         const pool = getPool();
 
-        // Multiple strategies to find shorts
+        // Fetch lots of videos, then filter by aspect ratio
         const queries = [
-          // Direct short video kinds
           pool.querySync(DEFAULT_RELAYS.slice(0, 5), {
             kinds: ALL_VIDEO_KINDS as number[],
-            limit: 100,
+            limit: 300,
           }),
-          // Hashtag search for short-form content
-          pool.querySync(DEFAULT_RELAYS.slice(0, 3), {
+          // Also try tagged shorts
+          pool.querySync(DEFAULT_RELAYS.slice(0, 4), {
             kinds: ALL_VIDEO_KINDS as number[],
-            "#t": ["shorts", "short", "clip", "reel"],
-            limit: 50,
+            "#t": ["shorts", "short", "clip", "reel", "vertical"],
+            limit: 100,
           }),
         ];
 
@@ -162,19 +161,23 @@ const Shorts = () => {
           return true;
         });
 
-        // Probe durations for all candidates (in parallel, batched)
+        // Probe all candidates for duration + aspect ratio
         const probeResults = await Promise.allSettled(
-          deduped.map(v => probeDuration(v.id, v.videoUrl))
+          deduped.map(v => probeVideo(v.id, v.videoUrl))
         );
 
-        // Filter: keep videos that are shorts by kind/tag OR ≤60s by probed duration
+        // Filter: vertical videos OR short-tagged content
         const shorts = deduped.filter((v, i) => {
-          // Already classified as short by kind or tag
+          const meta: VideoMeta | null = probeResults[i].status === "fulfilled"
+            ? probeResults[i].value
+            : getCachedMeta(v.id);
+
+          // Vertical video = short (any duration)
+          if (meta?.isVertical) return true;
+          // Explicitly tagged as short
           if (v.isShort) return true;
-          // Check probed duration
-          const probed = probeResults[i].status === "fulfilled" ? probeResults[i].value : null;
-          const cached = getCachedDuration(v.id);
-          const dur = probed || cached || v.durationSeconds;
+          // Short duration (≤60s) even if horizontal
+          const dur = meta?.duration || v.durationSeconds;
           return dur > 0 && dur <= 60;
         });
 

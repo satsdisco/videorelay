@@ -3,9 +3,13 @@ import type { Filter, Event } from "nostr-tools";
 
 // Aggregator relays that index the broadest content
 const DISCOVERY_RELAYS = [
-  "wss://relay.nostr.band",
   "wss://relay.damus.io",
+  "wss://nos.lol",
   "wss://relay.primal.net",
+  "wss://relay.snort.social",
+  "wss://nostr.wine",
+  "wss://offchain.pub",
+  "wss://nostr21.com",
 ];
 
 // Cache engagement scores in memory and localStorage
@@ -82,17 +86,17 @@ async function fetchEngagementScores(videoIds: string[]): Promise<Map<string, En
     try {
       // Fetch reactions (kind 7), reposts (kind 6, 16), comments (kind 1111, 1), and zaps (kind 9735)
       const [reactions, comments, zaps] = await Promise.allSettled([
-        pool.querySync(DISCOVERY_RELAYS.slice(0, 2), {
+        pool.querySync(DISCOVERY_RELAYS.slice(0, 4), {
           kinds: [7, 6, 16],
           "#e": chunk,
           limit: 1000,
         }),
-        pool.querySync(DISCOVERY_RELAYS.slice(0, 2), {
+        pool.querySync(DISCOVERY_RELAYS.slice(0, 4), {
           kinds: [1111, 1],
           "#e": chunk,
           limit: 500,
         }),
-        pool.querySync(DISCOVERY_RELAYS.slice(0, 2), {
+        pool.querySync(DISCOVERY_RELAYS.slice(0, 4), {
           kinds: [9735],
           "#e": chunk,
           limit: 500,
