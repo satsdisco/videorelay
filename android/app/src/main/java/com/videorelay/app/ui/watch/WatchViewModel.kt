@@ -35,6 +35,7 @@ class WatchViewModel @Inject constructor(
     private val relayRepository: RelayRepository,
     private val relayPool: RelayPool,
     private val viewHistoryDao: ViewHistoryDao,
+    val nip57Zap: NIP57Zap,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WatchUiState())

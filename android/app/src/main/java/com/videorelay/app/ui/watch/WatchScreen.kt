@@ -29,6 +29,7 @@ import coil.compose.AsyncImage
 import com.videorelay.app.ui.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("DEPRECATION")
 @Composable
 fun WatchScreen(
     videoId: String,
@@ -38,6 +39,7 @@ fun WatchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var showZapDialog by remember { mutableStateOf(false) }
 
     // Initialize ExoPlayer
     val player = remember {
@@ -172,7 +174,7 @@ fun WatchScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly,
                         ) {
                             ActionButton(Icons.Filled.ElectricBolt, "⚡ ${formatZapCount(video.zapCount)}") {
-                                // TODO: zap flow
+                                showZapDialog = true
                             }
                             ActionButton(Icons.Filled.Share, "Share") {
                                 val shareText = "${video.title}\n\nhttps://videorelay.lol/watch/${video.id}"
@@ -256,6 +258,17 @@ fun WatchScreen(
                 }
             }
         }
+    }
+
+    // Zap dialog
+    if (showZapDialog && uiState.video != null) {
+        ZapDialog(
+            creatorProfile = uiState.creatorProfile,
+            videoId = uiState.video!!.id,
+            nip57Zap = viewModel.nip57Zap,
+            context = context,
+            onDismiss = { showZapDialog = false },
+        )
     }
 }
 

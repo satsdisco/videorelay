@@ -28,7 +28,7 @@
         android:label="VideoRelay"
         android:supportsRtl="true"
         android:theme="@style/Theme.VideoRelay"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"
