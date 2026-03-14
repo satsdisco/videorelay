@@ -85,21 +85,30 @@ async function fetchEngagementScores(videoIds: string[]): Promise<Map<string, En
 
     try {
       // Fetch reactions (kind 7), reposts (kind 6, 16), comments (kind 1111, 1), and zaps (kind 9735)
+      // Use broader relay set for engagement queries — zaps especially need good coverage
+      const engagementRelays = [...new Set([
+        ...DISCOVERY_RELAYS,
+        "wss://relay.nostr.band",
+        "wss://relay.damus.io",
+        "wss://nostr.wine",
+        "wss://cache2.primal.net/v1",
+      ])].slice(0, 6);
+
       const [reactions, comments, zaps] = await Promise.allSettled([
-        pool.querySync(DISCOVERY_RELAYS.slice(0, 4), {
+        pool.querySync(engagementRelays, {
           kinds: [7, 6, 16],
+          "#e": chunk,
+          limit: 2000,
+        }),
+        pool.querySync(engagementRelays, {
+          kinds: [1111, 1],
           "#e": chunk,
           limit: 1000,
         }),
-        pool.querySync(DISCOVERY_RELAYS.slice(0, 4), {
-          kinds: [1111, 1],
-          "#e": chunk,
-          limit: 500,
-        }),
-        pool.querySync(DISCOVERY_RELAYS.slice(0, 4), {
+        pool.querySync(engagementRelays, {
           kinds: [9735],
           "#e": chunk,
-          limit: 500,
+          limit: 2000,
         }),
       ]);
 

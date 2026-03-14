@@ -28,7 +28,7 @@ export function usePopularVideos(options: UsePopularVideosOptions) {
     try {
       const results = await discoverPopularVideos(relays, {
         timePeriod,
-        limit: 300,
+        limit: sortBy === "zaps" ? 500 : 300,
         sortBy,
       });
       setVideos(results);
