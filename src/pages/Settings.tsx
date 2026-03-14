@@ -21,6 +21,9 @@ import { DEFAULT_RELAYS } from "@/lib/nostr";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getCuratedCreators, addCuratedCreator, removeCuratedCreator, npubToHex, type CuratedCreator } from "@/lib/curatedCreators";
+import { useNostrProfile } from "@/hooks/useNostrProfile";
+import { Star, UserPlus as UserPlusIcon } from "lucide-react";
 
 // ─── Preferences persisted in localStorage ───
 const PREFS_KEY = "videorelay_prefs";
@@ -259,6 +262,121 @@ const SettingRow = ({
   </div>
 );
 
+// ─── Curated Creator Row ───
+const CreatorRow = ({ creator, onRemove }: { creator: CuratedCreator; onRemove: () => void }) => {
+  const { profile } = useNostrProfile(creator.pubkey);
+  const displayName = profile?.displayName || profile?.name || creator.label || creator.pubkey.slice(0, 12) + "...";
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
+      {profile?.picture ? (
+        <img src={profile.picture} alt={displayName} className="w-10 h-10 rounded-full object-cover shrink-0" />
+      ) : (
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-bold text-primary-foreground shrink-0">
+          {displayName[0]?.toUpperCase() || "?"}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+        {profile?.nip05 && <p className="text-xs text-primary truncate">{profile.nip05}</p>}
+        <p className="text-xs text-muted-foreground truncate font-mono">{creator.pubkey.slice(0, 16)}...</p>
+      </div>
+      <button
+        onClick={onRemove}
+        className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
+// ─── Curated Creators Admin ───
+const CuratedCreatorsSettings = () => {
+  const [creators, setCreators] = useState<CuratedCreator[]>(getCuratedCreators);
+  const [input, setInput] = useState("");
+  const [error, setError] = useState("");
+
+  const handleAdd = () => {
+    setError("");
+    const val = input.trim();
+    if (!val) return;
+
+    let hex: string | null = null;
+    if (val.startsWith("npub1")) {
+      hex = npubToHex(val);
+      if (!hex || hex.length !== 64) {
+        setError("Invalid npub");
+        return;
+      }
+    } else if (/^[0-9a-f]{64}$/i.test(val)) {
+      hex = val.toLowerCase();
+    } else {
+      setError("Enter an npub or hex pubkey");
+      return;
+    }
+
+    if (creators.some(c => c.pubkey === hex)) {
+      setError("Already added");
+      return;
+    }
+
+    addCuratedCreator(hex);
+    setCreators(getCuratedCreators());
+    setInput("");
+  };
+
+  const handleRemove = (pubkey: string) => {
+    removeCuratedCreator(pubkey);
+    setCreators(getCuratedCreators());
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-base font-semibold text-foreground mb-1">Curated Creators</h3>
+        <p className="text-sm text-muted-foreground">
+          Pin creators whose videos get featured on the home page. Their latest videos will appear in a "Featured" section at the top of the feed.
+        </p>
+      </div>
+
+      {/* Add creator */}
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          placeholder="npub1... or hex pubkey"
+          className="flex-1 px-3 py-2 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50 font-mono"
+        />
+        <button
+          onClick={handleAdd}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+        >
+          <UserPlusIcon className="w-4 h-4" />
+          Add
+        </button>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+
+      {/* Creator list */}
+      {creators.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          <Star className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No curated creators yet</p>
+          <p className="text-xs mt-1">Add npubs of creators with great video content</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {creators.map((c) => (
+            <CreatorRow key={c.pubkey} creator={c} onRemove={() => handleRemove(c.pubkey)} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main ───
 const Settings = () => {
   const navigate = useNavigate();
@@ -311,6 +429,10 @@ const Settings = () => {
               <Shield className="w-4 h-4" />
               <span className="hidden sm:inline">Content</span>
             </TabsTrigger>
+            <TabsTrigger value="admin" className="flex-1 gap-1.5 py-2 rounded-lg data-[state=active]:bg-background">
+              <Star className="w-4 h-4" />
+              <span className="hidden sm:inline">Curate</span>
+            </TabsTrigger>
           </TabsList>
 
           <div className="mt-6">
@@ -322,6 +444,9 @@ const Settings = () => {
             </TabsContent>
             <TabsContent value="content">
               <ContentSettings prefs={prefs} setPrefs={setPrefs} />
+            </TabsContent>
+            <TabsContent value="admin">
+              <CuratedCreatorsSettings />
             </TabsContent>
           </div>
         </Tabs>

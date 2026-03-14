@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, type Dispatch, type SetStateAction } from "react";
 import Header from "@/components/Header";
-import Sidebar, { type SidebarView } from "@/components/Sidebar";
+import { type SidebarView } from "@/components/Sidebar";
+import MiniSidebar from "@/components/MiniSidebar";
 import RelayManager from "@/components/RelayManager";
 import CategoryBar from "@/components/CategoryBar";
 import VideoCard from "@/components/VideoCard";
@@ -14,8 +15,9 @@ import { useRelayStore } from "@/hooks/useRelayStore";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { useFollowList } from "@/hooks/useFollowList";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame, Users, Calendar, Trophy } from "lucide-react";
+import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame, Users, Calendar, Trophy, Star } from "lucide-react";
 import { getRandomLoadingMessage, getRandomEmptyMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
+import { getCuratedPubkeys } from "@/lib/curatedCreators";
 
 const LoadingState = () => {
   const [message, setMessage] = useState(getRandomLoadingMessage);
@@ -117,7 +119,7 @@ const timePeriodLabels: { value: TimePeriod; label: string; icon?: typeof Calend
 
 const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpen, searchQuery, setSearchQuery }: IndexProps) => {
   const isMobile = useIsMobile();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sidebarCollapsed = true; // Always use icon sidebar for consistency
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
@@ -173,6 +175,16 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
   const { trendingVideos } = useTrendingVideos({
     enabled: activeView === "home",
   });
+
+  // Curated creators — fetch their videos for Featured section on home
+  const curatedPubkeys = useMemo(() => getCuratedPubkeys(), []);
+  const { videos: curatedVideos, loading: curatedLoading } = useNostrVideos({
+    relays: activeRelays,
+    authors: curatedPubkeys.length > 0 ? curatedPubkeys : undefined,
+    limit: 50,
+    sortBy: "recent",
+    enabled: curatedPubkeys.length > 0 && activeView === "home",
+  } as any);
 
   // Select the right data source based on view
   const loading = isPopularView ? popularLoading : relayLoading;
@@ -266,17 +278,10 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} onSearch={setSearchQuery} />
+      <Header onToggleSidebar={() => {}} onSearch={setSearchQuery} />
 
-      {/* Desktop sidebar */}
-      {!isMobile && (
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          activeView={activeView}
-          onChangeView={handleViewChange}
-          onOpenRelays={() => setRelayManagerOpen(true)}
-        />
-      )}
+      {/* Desktop sidebar — unified icon sidebar across all pages */}
+      {!isMobile && <MiniSidebar />}
 
 
 
@@ -285,7 +290,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
 
       <main
         className={`pt-14 pb-16 md:pb-0 transition-all duration-300 ${
-          isMobile ? "ml-0" : sidebarCollapsed ? "ml-[72px]" : "ml-56"
+          isMobile ? "ml-0" : "ml-[72px]"
         }`}
       >
         <div className="px-3 md:px-6 py-2">
@@ -416,6 +421,25 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
                   </div>
                 )}
               </div>
+
+              {/* Featured Creators section — home view only */}
+              {activeView === "home" && curatedVideos.length > 0 && (
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Star className="w-4 h-4 text-amber-500" />
+                    <h3 className="text-sm font-semibold text-foreground">Featured Creators</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 md:gap-x-4 gap-y-5 md:gap-y-8">
+                    {curatedVideos
+                      .filter(v => !v.isShort)
+                      .slice(0, 8)
+                      .map((video) => (
+                        <VideoCard key={video.id} video={video} cachedProfile={profiles.get(video.pubkey) || null} />
+                      ))}
+                  </div>
+                  <div className="mt-4 border-b border-border" />
+                </div>
+              )}
 
               {/* Video grid — 1 col mobile, 2 col sm, 3 col lg, 4 col xl */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 md:gap-x-4 gap-y-5 md:gap-y-8">
