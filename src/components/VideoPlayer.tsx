@@ -254,7 +254,12 @@ const VideoPlayer = ({ src, poster, autoPlay = true, onEnded }: VideoPlayerProps
       onMouseLeave={() => playing && setShowControls(false)}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("[data-controls]")) return;
-        togglePlay();
+        // Mobile: tap toggles controls visibility. Desktop: tap toggles play.
+        if ("ontouchstart" in window) {
+          setShowControls(prev => !prev);
+        } else {
+          togglePlay();
+        }
       }}
     >
       {/* Blurred background fill for vertical/non-16:9 videos */}
@@ -336,13 +341,13 @@ const VideoPlayer = ({ src, poster, autoPlay = true, onEnded }: VideoPlayerProps
 
             <button
               onClick={() => { const v = videoRef.current; if (v) v.currentTime -= 10; }}
-              className="hidden md:flex p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
             >
               <SkipBack className="w-4 h-4 text-white" />
             </button>
             <button
               onClick={() => { const v = videoRef.current; if (v) v.currentTime += 10; }}
-              className="hidden md:flex p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
             >
               <SkipForward className="w-4 h-4 text-white" />
             </button>
@@ -412,17 +417,17 @@ const VideoPlayer = ({ src, poster, autoPlay = true, onEnded }: VideoPlayerProps
 
             {/* PiP */}
             {pipSupported && (
-              <button onClick={togglePiP} className="hidden md:flex p-1.5 hover:bg-white/10 rounded-lg transition-colors">
+              <button onClick={togglePiP} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors">
                 <PictureInPicture2 className="w-4 h-4 text-white" />
               </button>
             )}
 
             {/* Fullscreen */}
-            <button onClick={toggleFullscreen} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors">
+            <button onClick={toggleFullscreen} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
               {fullscreen ? (
-                <Minimize className="w-4 h-4 text-white" />
+                <Minimize className="w-5 h-5 text-white" />
               ) : (
-                <Maximize className="w-4 h-4 text-white" />
+                <Maximize className="w-5 h-5 text-white" />
               )}
             </button>
           </div>
