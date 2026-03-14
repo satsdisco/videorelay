@@ -191,9 +191,10 @@ export async function discoverPopularVideos(
   options: {
     timePeriod?: "today" | "week" | "month" | "year" | "all";
     limit?: number;
+    sortBy?: "trending" | "zaps";
   } = {}
 ): Promise<ParsedVideo[]> {
-  const { timePeriod = "all", limit = 300 } = options;
+  const { timePeriod = "all", limit = 300, sortBy = "trending" } = options;
   loadEngagementCache();
 
   const pool = getPool();
@@ -283,7 +284,25 @@ export async function discoverPopularVideos(
     return true;
   });
 
-  // Sort by composite score + time decay
+  if (sortBy === "zaps") {
+    // Most Zapped: pure zap amount ranking
+    filtered.sort((a, b) => {
+      const zapA = scores.get(a.id)?.zapAmount || 0;
+      const zapB = scores.get(b.id)?.zapAmount || 0;
+      if (zapA !== zapB) return zapB - zapA;
+      // Tiebreak by zap count
+      const countA = scores.get(a.id)?.zapCount || 0;
+      const countB = scores.get(b.id)?.zapCount || 0;
+      return countB - countA;
+    });
+    // Filter out videos with zero zaps for Most Zapped
+    return filtered.filter(v => {
+      const e = scores.get(v.id);
+      return e && (e.zapAmount > 0 || e.zapCount > 0);
+    });
+  }
+
+  // Trending: composite score + time decay
   filtered.sort((a, b) => {
     const scoreA = scores.get(a.id)?.score || 0;
     const scoreB = scores.get(b.id)?.score || 0;

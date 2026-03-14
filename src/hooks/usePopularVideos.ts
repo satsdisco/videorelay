@@ -7,17 +7,18 @@ interface UsePopularVideosOptions {
   relays: string[];
   timePeriod?: TimePeriod;
   enabled?: boolean;
+  sortBy?: "trending" | "zaps";
 }
 
 export function usePopularVideos(options: UsePopularVideosOptions) {
-  const { relays, timePeriod = "all", enabled = true } = options;
+  const { relays, timePeriod = "all", enabled = true, sortBy = "trending" } = options;
   const [videos, setVideos] = useState<ParsedVideo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchedRef = useRef(false);
   const lastKeyRef = useRef("");
 
-  const fetchKey = `${relays.join("|")}:${timePeriod}:${enabled}`;
+  const fetchKey = `${relays.join("|")}:${timePeriod}:${sortBy}:${enabled}`;
 
   const fetch = useCallback(async () => {
     if (!enabled || relays.length === 0) return;
@@ -28,6 +29,7 @@ export function usePopularVideos(options: UsePopularVideosOptions) {
       const results = await discoverPopularVideos(relays, {
         timePeriod,
         limit: 300,
+        sortBy,
       });
       setVideos(results);
     } catch (err) {
@@ -36,7 +38,7 @@ export function usePopularVideos(options: UsePopularVideosOptions) {
     } finally {
       setLoading(false);
     }
-  }, [relays, timePeriod, enabled]);
+  }, [relays, timePeriod, sortBy, enabled]);
 
   useEffect(() => {
     if (fetchKey !== lastKeyRef.current) {

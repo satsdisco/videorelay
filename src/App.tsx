@@ -1,6 +1,6 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useNavigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -31,19 +31,42 @@ const PageLoader = () => (
   </div>
 );
 
+// Map URL paths to sidebar views
+const VIEW_ROUTES: Record<string, SidebarView> = {
+  "/": "home",
+  "/trending": "trending",
+  "/zapped": "zapped",
+  "/following": "following",
+};
+
+const VIEW_PATHS: Record<SidebarView, string> = {
+  home: "/",
+  trending: "/trending",
+  zapped: "/zapped",
+  following: "/following",
+  live: "/live",
+};
+
 const AppRoutes = () => {
   const navigate = useNavigate();
-  const [activeView, setActiveView] = useState<SidebarView>("home");
+  const location = useLocation();
+  const [activeView, setActiveView] = useState<SidebarView>(() => {
+    return VIEW_ROUTES[window.location.pathname] || "home";
+  });
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Sync activeView when URL changes (back/forward navigation)
+  useEffect(() => {
+    const view = VIEW_ROUTES[location.pathname];
+    if (view && view !== activeView) {
+      setActiveView(view);
+    }
+  }, [location.pathname]);
+
   const handleViewChange = (view: SidebarView) => {
     setActiveView(view);
-    if (view === "live") {
-      navigate("/live");
-    } else {
-      navigate("/");
-    }
+    navigate(VIEW_PATHS[view] || "/");
   };
 
   return (
@@ -51,19 +74,22 @@ const AppRoutes = () => {
       <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route
-            path="/"
-            element={
-              <Index
-                activeView={activeView}
-                setActiveView={setActiveView}
-                mobileSearchOpen={mobileSearchOpen}
-                setMobileSearchOpen={setMobileSearchOpen}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-              />
-            }
-          />
+          {["/", "/trending", "/zapped", "/following"].map((path) => (
+            <Route
+              key={path}
+              path={path}
+              element={
+                <Index
+                  activeView={activeView}
+                  setActiveView={setActiveView}
+                  mobileSearchOpen={mobileSearchOpen}
+                  setMobileSearchOpen={setMobileSearchOpen}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                />
+              }
+            />
+          ))}
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/shorts" element={<Shorts />} />
           <Route path="/live" element={<Live />} />

@@ -166,6 +166,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
     relays: activeRelays,
     timePeriod,
     enabled: isPopularView,
+    sortBy: activeView === "zapped" ? "zaps" : "trending",
   });
 
   // Supplementary discovery — runs in background for Home view
