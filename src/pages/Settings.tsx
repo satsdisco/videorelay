@@ -35,6 +35,7 @@ interface Preferences {
   nsfwBlur: boolean;
   showZapAmounts: boolean;
   compactMode: boolean;
+  blossomServer: string;
 }
 
 const defaultPrefs: Preferences = {
@@ -44,6 +45,7 @@ const defaultPrefs: Preferences = {
   nsfwBlur: true,
   showZapAmounts: true,
   compactMode: false,
+  blossomServer: "https://blossom.primal.net",
 };
 
 function loadPrefs(): Preferences {
@@ -234,6 +236,22 @@ const ContentSettings = ({ prefs, setPrefs }: { prefs: Preferences; setPrefs: (p
       >
         <Switch checked={prefs.compactMode} onCheckedChange={(v) => update({ compactMode: v })} />
       </SettingRow>
+
+      <div className="border-t border-border pt-4">
+        <div className="flex items-start gap-3 mb-2">
+          <div className="mt-0.5 text-muted-foreground"><Globe className="w-4 h-4" /></div>
+          <div>
+            <p className="text-sm font-medium text-foreground">Blossom Media Server</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Where uploaded videos are stored. Default: blossom.primal.net</p>
+          </div>
+        </div>
+        <input
+          value={prefs.blossomServer}
+          onChange={(e) => update({ blossomServer: e.target.value })}
+          placeholder="https://blossom.primal.net"
+          className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50 font-mono"
+        />
+      </div>
     </div>
   );
 };

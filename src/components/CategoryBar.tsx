@@ -51,19 +51,23 @@ const CategoryBar = ({ onCategoryChange }: CategoryBarProps) => {
   };
 
   return (
-    <div className="relative flex items-center gap-1">
+    <div className="relative flex items-center">
+      {/* Left fade + arrow */}
       {canScrollLeft && (
-        <button
-          onClick={() => scroll("left")}
-          className="absolute left-0 z-10 p-1 rounded-full bg-background/90 border border-border shadow-sm hover:bg-secondary transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4 text-foreground" />
-        </button>
+        <>
+          <div className="absolute left-0 z-10 w-16 h-full bg-gradient-to-r from-background to-transparent pointer-events-none" />
+          <button
+            onClick={() => scroll("left")}
+            className="absolute left-1 z-20 p-1.5 rounded-full bg-background/95 border border-border shadow-md hover:bg-secondary transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4 text-foreground" />
+          </button>
+        </>
       )}
       <div
         ref={scrollRef}
         onScroll={checkScroll}
-        className="flex items-center gap-2 overflow-x-auto py-3 px-1 scrollbar-hide"
+        className="flex items-center gap-2 overflow-x-auto py-3 px-1 scrollbar-hide scroll-smooth"
       >
         {categories.map((cat) => (
           <button
@@ -79,13 +83,17 @@ const CategoryBar = ({ onCategoryChange }: CategoryBarProps) => {
           </button>
         ))}
       </div>
+      {/* Right fade + arrow */}
       {canScrollRight && (
-        <button
-          onClick={() => scroll("right")}
-          className="absolute right-0 z-10 p-1 rounded-full bg-background/90 border border-border shadow-sm hover:bg-secondary transition-colors"
-        >
-          <ChevronRight className="w-4 h-4 text-foreground" />
-        </button>
+        <>
+          <div className="absolute right-0 z-10 w-16 h-full bg-gradient-to-l from-background to-transparent pointer-events-none" />
+          <button
+            onClick={() => scroll("right")}
+            className="absolute right-1 z-20 p-1.5 rounded-full bg-background/95 border border-border shadow-md hover:bg-secondary transition-colors"
+          >
+            <ChevronRight className="w-4 h-4 text-foreground" />
+          </button>
+        </>
       )}
     </div>
   );

@@ -27,6 +27,7 @@ const Upload = () => {
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [publishing, setPublishing] = useState(false);
+  const [isShort, setIsShort] = useState(false);
 
   // File upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -93,7 +94,8 @@ const Upload = () => {
         ["d", `${Date.now()}`],
       ];
       if (thumbnailUrl.trim()) eventTags.push(["thumb", thumbnailUrl.trim()]);
-      tags.forEach((t) => eventTags.push(["t", t]));
+      const allTags = isShort && !tags.includes("shorts") ? [...tags, "shorts"] : tags;
+      allTags.forEach((t) => eventTags.push(["t", t]));
 
       const unsignedEvent = {
         kind: ADDRESSABLE_VIDEO_KIND,
@@ -302,6 +304,20 @@ const Upload = () => {
               </div>
             )}
           </div>
+
+          {/* Shorts toggle */}
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isShort}
+              onChange={(e) => setIsShort(e.target.checked)}
+              className="w-4 h-4 rounded border-border accent-primary"
+            />
+            <div>
+              <p className="text-sm font-medium text-foreground">Mark as Short</p>
+              <p className="text-xs text-muted-foreground">For vertical videos under 60 seconds. Adds #shorts tag.</p>
+            </div>
+          </label>
 
           {/* Preview */}
           {videoUrl && (

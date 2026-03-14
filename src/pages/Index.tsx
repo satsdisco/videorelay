@@ -119,7 +119,7 @@ const timePeriodLabels: { value: TimePeriod; label: string; icon?: typeof Calend
 
 const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpen, searchQuery, setSearchQuery }: IndexProps) => {
   const isMobile = useIsMobile();
-  const sidebarCollapsed = true; // Always use icon sidebar for consistency
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [hashtag, setHashtag] = useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
@@ -278,10 +278,10 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onToggleSidebar={() => {}} onSearch={setSearchQuery} />
+      <Header onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} onSearch={setSearchQuery} />
 
-      {/* Desktop sidebar — unified icon sidebar across all pages */}
-      {!isMobile && <MiniSidebar />}
+      {/* Desktop sidebar — toggleable between icon and expanded */}
+      {!isMobile && <MiniSidebar collapsed={sidebarCollapsed} />}
 
 
 
@@ -290,7 +290,7 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
 
       <main
         className={`pt-14 pb-16 md:pb-0 transition-all duration-300 ${
-          isMobile ? "ml-0" : "ml-[72px]"
+          isMobile ? "ml-0" : sidebarCollapsed ? "ml-[72px]" : "ml-52"
         }`}
       >
         <div className="px-3 md:px-6 py-2">

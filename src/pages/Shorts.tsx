@@ -313,7 +313,9 @@ const Shorts = () => {
     return (
       <div className="h-screen bg-black flex flex-col items-center justify-center text-white px-4">
         <p className="text-lg font-bold mb-2">No Shorts found</p>
-        <p className="text-sm text-white/60 mb-4">Check back later for short-form content</p>
+        <p className="text-sm text-white/60 mb-4 text-center max-w-xs">
+          Shorts are vertical videos under 60 seconds, or tagged with #shorts
+        </p>
         <button
           onClick={() => navigate("/")}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg"
@@ -336,6 +338,7 @@ const Shorts = () => {
       <div className="fixed top-4 left-14 z-50">
         <span className="text-white font-bold text-lg">Shorts</span>
         <span className="text-white/40 text-sm ml-2">{shorts.length} videos</span>
+        <span className="text-white/30 text-xs ml-2">· vertical or ≤60s</span>
       </div>
 
       <div
