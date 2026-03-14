@@ -314,9 +314,11 @@ const CuratedCreatorsSettings = () => {
   const [creators, setCreators] = useState<CuratedCreator[]>(getCuratedCreators);
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleAdd = () => {
     setError("");
+    setSuccess("");
     const val = input.trim();
     if (!val) return;
 
@@ -339,9 +341,15 @@ const CuratedCreatorsSettings = () => {
       return;
     }
 
-    addCuratedCreator(hex);
+    const saved = addCuratedCreator(hex);
+    if (!saved) {
+      setError("Storage full — clear site data and try again");
+      return;
+    }
     setCreators(getCuratedCreators());
     setInput("");
+    setSuccess(`Added ${hex.slice(0, 8)}… — their videos will appear in Featured Creators`);
+    setTimeout(() => setSuccess(""), 5000);
   };
 
   const handleRemove = (pubkey: string) => {
@@ -376,6 +384,7 @@ const CuratedCreatorsSettings = () => {
         </button>
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
+      {success && <p className="text-xs text-green-500">{success}</p>}
 
       {/* Creator list */}
       {creators.length === 0 ? (

@@ -38,15 +38,15 @@ export function getCuratedCreators(): CuratedCreator[] {
   return [...SEED_CREATORS];
 }
 
-export function saveCuratedCreators(creators: CuratedCreator[]): void {
-  safeSetItem(CURATED_KEY, JSON.stringify(creators));
+export function saveCuratedCreators(creators: CuratedCreator[]): boolean {
+  return safeSetItem(CURATED_KEY, JSON.stringify(creators));
 }
 
-export function addCuratedCreator(pubkey: string, label?: string): void {
+export function addCuratedCreator(pubkey: string, label?: string): boolean {
   const creators = getCuratedCreators();
-  if (creators.some(c => c.pubkey === pubkey)) return;
+  if (creators.some(c => c.pubkey === pubkey)) return true;
   creators.push({ pubkey, label, addedAt: Date.now() });
-  saveCuratedCreators(creators);
+  return saveCuratedCreators(creators);
 }
 
 export function removeCuratedCreator(pubkey: string): void {
