@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Zap, Share2, MessageSquare, User } from "lucide-react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo, ALL_VIDEO_KINDS } from "@/lib/nostr";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
+import { probeDuration, getCachedDuration } from "@/lib/durationProbe";
 import type { Event } from "nostr-tools";
 
 const ShortVideoItem = ({
@@ -151,7 +152,7 @@ const Shorts = () => {
 
         const parsed = allEvents
           .map(parseVideoEvent)
-          .filter((v): v is ParsedVideo => v !== null && v.isShort);
+          .filter((v): v is ParsedVideo => v !== null);
 
         // Dedupe
         const seen = new Set<string>();
@@ -161,13 +162,29 @@ const Shorts = () => {
           return true;
         });
 
+        // Probe durations for all candidates (in parallel, batched)
+        const probeResults = await Promise.allSettled(
+          deduped.map(v => probeDuration(v.id, v.videoUrl))
+        );
+
+        // Filter: keep videos that are shorts by kind/tag OR ≤60s by probed duration
+        const shorts = deduped.filter((v, i) => {
+          // Already classified as short by kind or tag
+          if (v.isShort) return true;
+          // Check probed duration
+          const probed = probeResults[i].status === "fulfilled" ? probeResults[i].value : null;
+          const cached = getCachedDuration(v.id);
+          const dur = probed || cached || v.durationSeconds;
+          return dur > 0 && dur <= 60;
+        });
+
         // Shuffle — different order every visit
-        for (let i = deduped.length - 1; i > 0; i--) {
+        for (let i = shorts.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
-          [deduped[i], deduped[j]] = [deduped[j], deduped[i]];
+          [shorts[i], shorts[j]] = [shorts[j], shorts[i]];
         }
 
-        setShorts(deduped);
+        setShorts(shorts);
       } catch (err) {
         console.error("Failed to fetch shorts:", err);
       } finally {

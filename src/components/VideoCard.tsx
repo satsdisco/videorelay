@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { getFallbackThumb } from "@/lib/fallbackThumb";
 import { hasWatched } from "@/lib/viewTracker";
 import { getCachedPoster, extractPoster } from "@/lib/posterCache";
+import { getCachedDuration, probeDuration, formatDurationSecs } from "@/lib/durationProbe";
 
 interface VideoCardProps {
   video: ParsedVideo;
@@ -39,6 +40,22 @@ const VideoCard = ({ video, cachedProfile }: VideoCardProps) => {
 
   const thumbnail = video.thumbnail || posterUrl || getFallbackThumb(video.id);
 
+  // Probe real duration if we don't have one
+  const [probedDuration, setProbedDuration] = useState<number | null>(() => getCachedDuration(video.id));
+  const hasNoDuration = !video.duration || video.duration === "0:00";
+
+  useEffect(() => {
+    if (hasNoDuration && probedDuration === null) {
+      probeDuration(video.id, video.videoUrl).then(dur => {
+        if (dur) setProbedDuration(dur);
+      });
+    }
+  }, [video.id, video.videoUrl, hasNoDuration, probedDuration]);
+
+  const displayDuration = hasNoDuration
+    ? (probedDuration ? formatDurationSecs(probedDuration) : "")
+    : video.duration;
+
   return (
     <div
       className="group cursor-pointer"
@@ -60,9 +77,9 @@ const VideoCard = ({ video, cachedProfile }: VideoCardProps) => {
           }}
         />
         {/* Duration badge */}
-        {video.duration && (
+        {displayDuration && (
           <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-background/90 rounded text-xs font-medium text-foreground backdrop-blur-sm">
-            {video.duration}
+            {displayDuration}
           </div>
         )}
         {/* Watched badge */}
