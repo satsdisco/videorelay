@@ -4,14 +4,14 @@
  */
 
 // Priority order for eviction (lowest = evicted first)
+// Keys MUST match actual localStorage keys used in the codebase
 const EVICTION_ORDER = [
-  "videorelay_poster_cache",     // poster frame cache — regenerable
-  "videorelay_duration_cache",   // duration probe cache — regenerable
-  "videorelay_meta_cache",       // video meta cache — regenerable
-  "videorelay_engagement",       // engagement scores — regenerable
-  "videorelay_video_cache",      // video event cache — regenerable
-  "videorelay_views",            // view history — nice to have
-  // Never evict: relay config, theme, prefs, curated creators
+  "videorelay_posters",          // poster frame cache — HUGE (base64 images) — posterCache.ts
+  "videorelay_durations",        // duration/dimension probe cache — durationProbe.ts
+  "videorelay_engagement",       // engagement scores — videoDiscovery.ts
+  "videorelay_video_cache",      // video event cache — useNostrVideos.ts
+  "videorelay_views",            // view history — viewTracker.ts
+  // Never evict: relay config, theme, prefs, curated creators, auth
 ];
 
 function evictCaches(): boolean {

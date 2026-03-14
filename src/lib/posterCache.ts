@@ -19,8 +19,8 @@ try {
 
 function persistCache() {
   try {
-    // Only keep last 200 entries
-    const entries = [...memoryCache.entries()].slice(-200);
+    // Only keep last 30 entries — poster base64 strings are large (~50-100KB each)
+    const entries = [...memoryCache.entries()].slice(-30);
     safeSetItem(CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
   } catch {}
 }
