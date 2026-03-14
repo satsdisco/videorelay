@@ -1,20 +1,30 @@
 package com.videorelay.app.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.videorelay.app.domain.model.Profile
 import com.videorelay.app.domain.model.Video
+import com.videorelay.app.ui.theme.VRPurple
+import com.videorelay.app.ui.theme.VRPurpleDim
 
 @Composable
 fun VideoCard(
@@ -24,6 +34,8 @@ fun VideoCard(
     onChannelClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+
     Column(
         modifier = modifier
             .clickable(onClick = onClick)
@@ -36,12 +48,34 @@ fun VideoCard(
                 .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(12.dp)),
         ) {
-            AsyncImage(
-                model = video.thumbnail,
-                contentDescription = video.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
+            val thumbnailUrl = video.thumbnail.ifBlank { null }
+
+            if (thumbnailUrl != null) {
+                SubcomposeAsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(thumbnailUrl)
+                        .crossfade(200)
+                        .build(),
+                    contentDescription = video.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = {
+                        // Shimmer placeholder
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                        )
+                    },
+                    error = {
+                        // Purple gradient fallback with play icon
+                        ThumbnailFallback(title = video.title)
+                    },
+                )
+            } else {
+                // No thumbnail URL — show gradient fallback
+                ThumbnailFallback(title = video.title)
+            }
 
             // Duration badge
             if (video.duration.isNotBlank()) {
@@ -71,8 +105,14 @@ fun VideoCard(
                 .padding(horizontal = 4.dp),
         ) {
             // Creator avatar
-            AsyncImage(
-                model = profile?.picture,
+            val avatarUrl = profile?.picture?.ifBlank { null }
+            SubcomposeAsyncImage(
+                model = avatarUrl?.let {
+                    ImageRequest.Builder(context)
+                        .data(it)
+                        .crossfade(true)
+                        .build()
+                },
                 contentDescription = profile?.bestName,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -82,6 +122,12 @@ fun VideoCard(
                         if (onChannelClick != null) Modifier.clickable(onClick = onChannelClick)
                         else Modifier
                     ),
+                loading = {
+                    AvatarFallback(name = profile?.bestName)
+                },
+                error = {
+                    AvatarFallback(name = profile?.bestName)
+                },
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -92,6 +138,7 @@ fun VideoCard(
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
@@ -109,6 +156,56 @@ fun VideoCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ThumbnailFallback(title: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        VRPurpleDim.copy(alpha = 0.6f),
+                        VRPurple.copy(alpha = 0.3f),
+                        MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Filled.PlayArrow,
+            contentDescription = title,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+        )
+    }
+}
+
+@Composable
+private fun AvatarFallback(name: String?) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (name != null && name.isNotBlank()) {
+            Text(
+                text = name.first().uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        } else {
+            Icon(
+                Icons.Filled.Person,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
