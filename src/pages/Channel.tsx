@@ -51,7 +51,7 @@ const Channel = () => {
               <h2 className="text-2xl font-bold text-foreground">{displayName}</h2>
               {profile?.nip05 && <p className="text-sm text-primary">{profile.nip05}</p>}
               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                <span>{videos.length} videos</span>
+                <span>{videosLoading ? "Loading..." : `${videos.length} videos`}</span>
                 {totalZaps > 0 && (
                   <span className="flex items-center gap-1 text-zap">
                     <Zap className="w-3.5 h-3.5" fill="currentColor" />

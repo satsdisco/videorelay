@@ -1,17 +1,43 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo, ALL_VIDEO_KINDS } from "@/lib/nostr";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { getCachedVideos } from "@/lib/videoCache";
-
 import { getFallbackThumb } from "@/lib/fallbackThumb";
+import { getCachedPoster, extractPoster } from "@/lib/posterCache";
+import { getCachedDuration, probeDuration, formatDurationSecs } from "@/lib/durationProbe";
 
 const RelatedVideoItem = ({ video }: { video: ParsedVideo }) => {
   const { profile } = useNostrProfile(video.pubkey);
   const navigate = useNavigate();
   const displayName = profile?.displayName || profile?.name || video.pubkey.slice(0, 10) + "...";
-  const thumbnail = video.thumbnail || getFallbackThumb(video.id);
+
+  // Poster extraction for videos without thumbnails
+  const [posterUrl, setPosterUrl] = useState<string | null>(() => getCachedPoster(video.id));
+  const hasThumbnail = !!video.thumbnail;
+
+  useEffect(() => {
+    if (!hasThumbnail && !posterUrl) {
+      extractPoster(video.id, video.videoUrl).then(url => {
+        if (url) setPosterUrl(url);
+      });
+    }
+  }, [video.id, video.videoUrl, hasThumbnail, posterUrl]);
+
+  const thumbnail = video.thumbnail || posterUrl || getFallbackThumb(video.id);
+
+  // Duration probe
+  const [probedDur, setProbedDur] = useState<number | null>(() => getCachedDuration(video.id));
+  const noDur = !video.duration || video.duration === "0:00";
+
+  useEffect(() => {
+    if (noDur && probedDur === null) {
+      probeDuration(video.id, video.videoUrl).then(d => { if (d) setProbedDur(d); });
+    }
+  }, [video.id, video.videoUrl, noDur, probedDur]);
+
+  const displayDuration = noDur ? (probedDur ? formatDurationSecs(probedDur) : "") : video.duration;
 
   return (
     <div
@@ -29,9 +55,9 @@ const RelatedVideoItem = ({ video }: { video: ParsedVideo }) => {
             (e.target as HTMLImageElement).src = getFallbackThumb(video.id);
           }}
         />
-        {video.duration && (
+        {displayDuration && (
           <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-background/90 rounded text-[10px] font-medium text-foreground">
-            {video.duration}
+            {displayDuration}
           </div>
         )}
       </div>

@@ -257,13 +257,20 @@ const VideoPlayer = ({ src, poster, autoPlay = true, onEnded }: VideoPlayerProps
         togglePlay();
       }}
     >
+      {/* Blurred background fill for vertical/non-16:9 videos */}
+      {poster && (
+        <div
+          className="absolute inset-0 bg-cover bg-center blur-2xl scale-110 opacity-30"
+          style={{ backgroundImage: `url(${poster})` }}
+        />
+      )}
       <video
         ref={videoRef}
         src={isHlsUrl(src) ? undefined : src}
         poster={poster}
         autoPlay={isHlsUrl(src) ? false : autoPlay}
         playsInline
-        className="w-full h-full object-contain"
+        className="relative w-full h-full object-contain"
       />
 
       {/* Center play button when paused */}

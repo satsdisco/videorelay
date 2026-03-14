@@ -118,10 +118,21 @@ const Watch = () => {
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       {/* Top bar */}
       <div className="sticky top-0 z-50 flex items-center gap-3 px-3 md:px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border">
-        <button onClick={() => navigate("/")} className="p-2 rounded-lg hover:bg-secondary transition-colors">
+        <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-secondary transition-colors shrink-0">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
-        <h1 className="text-sm font-medium text-foreground truncate">{video.title}</h1>
+        <h1 className="text-sm font-medium text-foreground truncate flex-1">{video.title}</h1>
+        <div className="hidden md:flex items-center gap-1 shrink-0">
+          {[
+            { label: "Home", path: "/" },
+            { label: "Trending", path: "/trending" },
+            { label: "Shorts", path: "/shorts" },
+          ].map(({ label, path }) => (
+            <button key={path} onClick={() => navigate(path)} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors">
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 md:gap-6 max-w-[1400px] mx-auto px-0 md:px-4 py-0 md:py-6">
@@ -266,11 +277,29 @@ const Watch = () => {
           </div>
 
           {/* Description */}
-          {video.summary && (
-            <div className="mx-3 md:mx-0 bg-secondary rounded-xl p-4 mb-4 md:mb-6">
-              <p className="text-sm text-secondary-foreground whitespace-pre-wrap">{video.summary}</p>
-            </div>
-          )}
+          {video.summary && (() => {
+            // Strip raw video/image URLs from description
+            const cleaned = video.summary
+              .replace(/https?:\/\/[^\s]+\.(mp4|webm|mov|m3u8|ogg)(\?[^\s]*)?/gi, "")
+              .replace(/https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif)(\?[^\s]*)?/gi, "")
+              .replace(/https?:\/\/blossom\.[^\s]+/gi, "")
+              .replace(/\n{3,}/g, "\n\n")
+              .trim();
+            if (!cleaned) return null;
+            // Linkify remaining URLs
+            const parts = cleaned.split(/(https?:\/\/[^\s]+)/g);
+            return (
+              <div className="mx-3 md:mx-0 bg-secondary rounded-xl p-4 mb-4 md:mb-6">
+                <p className="text-sm text-secondary-foreground whitespace-pre-wrap">
+                  {parts.map((part, i) =>
+                    part.match(/^https?:\/\//) ? (
+                      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{new URL(part).hostname}</a>
+                    ) : part
+                  )}
+                </p>
+              </div>
+            );
+          })()}
 
           {/* Tags */}
           {video.tags.length > 0 && (
