@@ -1,2 +1,0 @@
--keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.settings.SettingsViewModel
--keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.settings.SettingsViewModel

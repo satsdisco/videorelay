@@ -1,7 +1,0 @@
--keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.settings.SettingsViewModel
--keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.settings.SettingsViewModel
--keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.home.HomeViewModel
--keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.home.HomeViewModel
--keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.search.SearchViewModel
--keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.search.SearchViewModel
--keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.channel.ChannelViewModel
