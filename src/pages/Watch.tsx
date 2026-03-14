@@ -12,6 +12,7 @@ import { recordView } from "@/lib/viewTracker";
 import VideoPlayer from "@/components/VideoPlayer";
 import VideoComments from "@/components/VideoComments";
 import RelatedVideos from "@/components/RelatedVideos";
+import MiniSidebar from "@/components/MiniSidebar";
 
 import { getFallbackThumb } from "@/lib/fallbackThumb";
 
@@ -116,26 +117,16 @@ const Watch = () => {
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
+      <MiniSidebar />
       {/* Top bar */}
-      <div className="sticky top-0 z-50 flex items-center gap-3 px-3 md:px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border">
+      <div className="sticky top-0 z-50 flex items-center gap-3 px-3 md:pl-[88px] md:pr-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border">
         <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-secondary transition-colors shrink-0">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
         <h1 className="text-sm font-medium text-foreground truncate flex-1">{video.title}</h1>
-        <div className="hidden md:flex items-center gap-1 shrink-0">
-          {[
-            { label: "Home", path: "/" },
-            { label: "Trending", path: "/trending" },
-            { label: "Shorts", path: "/shorts" },
-          ].map(({ label, path }) => (
-            <button key={path} onClick={() => navigate(path)} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors">
-              {label}
-            </button>
-          ))}
-        </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 max-w-[1400px] mx-auto px-0 md:px-4 py-0 md:py-6">
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 max-w-[1400px] mx-auto px-0 md:pl-[88px] md:pr-4 py-0 md:py-6">
         {/* Main content */}
         <div className="flex-1 min-w-0">
           {/* Custom Video Player */}

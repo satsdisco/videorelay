@@ -6,6 +6,7 @@ import { useNostrVideos } from "@/hooks/useNostrVideos";
 import { useRelayStore } from "@/hooks/useRelayStore";
 import { shortenNpub } from "@/lib/nostr";
 import VideoCard from "@/components/VideoCard";
+import MiniSidebar from "@/components/MiniSidebar";
 
 const Channel = () => {
   const { pubkey } = useParams<{ pubkey: string }>();
@@ -27,9 +28,10 @@ const Channel = () => {
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
+      <MiniSidebar />
       {/* Top bar */}
-      <div className="sticky top-0 z-50 flex items-center gap-3 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border">
-        <button onClick={() => navigate("/")} className="p-2 rounded-lg hover:bg-secondary transition-colors">
+      <div className="sticky top-0 z-50 flex items-center gap-3 px-4 md:pl-[88px] py-3 bg-background/95 backdrop-blur-sm border-b border-border">
+        <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
         <h1 className="text-sm font-medium text-foreground truncate">{displayName}'s Channel</h1>
@@ -38,7 +40,7 @@ const Channel = () => {
       {/* Banner / Profile header */}
       <div className="relative">
         <div className="h-32 bg-gradient-to-r from-primary/30 via-primary/10 to-accent/20" />
-        <div className="max-w-5xl mx-auto px-6 -mt-12">
+        <div className="max-w-5xl mx-auto px-6 md:pl-[88px] -mt-12">
           <div className="flex items-end gap-5">
             {profile?.picture ? (
               <img src={profile.picture} alt={displayName} className="w-24 h-24 rounded-full object-cover border-4 border-background shadow-xl" />
@@ -69,7 +71,7 @@ const Channel = () => {
       </div>
 
       {/* Videos */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-6 md:pl-[88px] py-8">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-foreground">Videos</h3>
           <div className="flex items-center bg-secondary rounded-full p-0.5">
