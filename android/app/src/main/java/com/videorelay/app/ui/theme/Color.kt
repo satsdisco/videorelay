@@ -2,29 +2,35 @@ package com.videorelay.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// VideoRelay brand — dark-first, accent in warm tones
-val VRRed = Color(0xFFE53935)
-val VROrange = Color(0xFFFF7043)
-val VRDarkSurface = Color(0xFF121212)
-val VRDarkCard = Color(0xFF1E1E1E)
-val VRDarkElevated = Color(0xFF2A2A2A)
+// VideoRelay brand — matches web app exactly
+// Primary: HSL(265, 80%, 60%) = purple/violet
+// Background: HSL(250, 15%, 7%) = deep dark purple-black
+// Card: HSL(250, 15%, 10%)
+// Border: HSL(250, 15%, 18%)
+// Zap gold: HSL(45, 100%, 55%)
 
-// Dark scheme
-val DarkPrimary = VRRed
-val DarkOnPrimary = Color.White
-val DarkBackground = Color(0xFF0F0F0F)
-val DarkSurface = VRDarkSurface
-val DarkSurfaceVariant = VRDarkCard
-val DarkOnSurface = Color(0xFFE8E8E8)
-val DarkOnSurfaceVariant = Color(0xFFA0A0A0)
-val DarkOutline = Color(0xFF3A3A3A)
+val VRPurple = Color(0xFF8B5CF6)          // primary — hsl(265, 80%, 60%)
+val VRPurpleLight = Color(0xFF7C3AED)     // primary pressed
+val VRPurpleDim = Color(0xFF6D28D9)       // primary variant
+
+val VRZapGold = Color(0xFFEAB308)         // zap accent — hsl(45, 100%, 55%)
+
+// Dark scheme (default — matches web)
+val DarkBackground = Color(0xFF111015)    // hsl(250, 15%, 7%)
+val DarkSurface = Color(0xFF18161F)       // hsl(250, 15%, 10%)
+val DarkCard = Color(0xFF18161F)          // card bg
+val DarkCardElevated = Color(0xFF1F1D28)  // elevated surface
+val DarkBorder = Color(0xFF2A2733)        // hsl(250, 15%, 18%)
+val DarkOnSurface = Color(0xFFEEECF3)     // hsl(250, 10%, 95%)
+val DarkOnSurfaceVariant = Color(0xFF87839A) // hsl(250, 10%, 55%)
+val DarkSecondary = Color(0xFF1F1D28)     // hsl(250, 15%, 14%)
+val DarkMuted = Color(0xFF87839A)         // muted text
 
 // Light scheme
-val LightPrimary = VRRed
-val LightOnPrimary = Color.White
-val LightBackground = Color(0xFFF5F5F5)
-val LightSurface = Color.White
-val LightSurfaceVariant = Color(0xFFEEEEEE)
-val LightOnSurface = Color(0xFF1A1A1A)
-val LightOnSurfaceVariant = Color(0xFF666666)
-val LightOutline = Color(0xFFDDDDDD)
+val LightBackground = Color(0xFFFAFAFA)
+val LightSurface = Color(0xFFFFFFFF)
+val LightCard = Color(0xFFFFFFFF)
+val LightBorder = Color(0xFFE0DDE8)       // hsl(250, 10%, 88%)
+val LightOnSurface = Color(0xFF18161F)
+val LightOnSurfaceVariant = Color(0xFF6B6780)
+val LightSecondary = Color(0xFFEDEBF3)    // hsl(250, 10%, 93%)

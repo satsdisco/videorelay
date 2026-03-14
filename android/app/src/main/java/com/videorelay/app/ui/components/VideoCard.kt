@@ -46,7 +46,7 @@ fun VideoCard(
             // Duration badge
             if (video.duration.isNotBlank()) {
                 Surface(
-                    color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.85f),
+                    color = MaterialTheme.colorScheme.background.copy(alpha = 0.9f),
                     shape = RoundedCornerShape(4.dp),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -55,7 +55,7 @@ fun VideoCard(
                     Text(
                         text = video.duration,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.inverseOnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                     )
                 }

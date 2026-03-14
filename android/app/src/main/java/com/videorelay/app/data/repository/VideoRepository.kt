@@ -19,7 +19,7 @@ class VideoRepository @Inject constructor(
 
     /**
      * Fetch videos from relays with caching.
-     * Shows cached results immediately, then refreshes from network.
+     * Uses fast relays first for quick initial load, then backfills from all relays.
      */
     suspend fun fetchVideos(
         limit: Int = 200,
@@ -40,8 +40,20 @@ class VideoRepository @Inject constructor(
             tags = if (hashtag != null) mapOf("#t" to listOf(hashtag.lowercase())) else emptyMap(),
         )
 
-        val events = relayPool.query(relays, filter)
-        val videos = events.mapNotNull { NIP71Parser.parse(it) }
+        // Query fast relays first (2s timeout) for quick results
+        val fastRelays = relays.filter { it in NostrConstants.FAST_RELAYS }
+        val fastEvents = if (fastRelays.isNotEmpty()) {
+            relayPool.query(fastRelays, filter, timeoutMs = 2500)
+        } else emptyList()
+
+        // Then query remaining relays
+        val slowRelays = relays.filter { it !in NostrConstants.FAST_RELAYS }
+        val slowEvents = if (slowRelays.isNotEmpty()) {
+            relayPool.query(slowRelays, filter, timeoutMs = 4000)
+        } else emptyList()
+
+        val allEvents = (fastEvents + slowEvents)
+        val videos = allEvents.mapNotNull { NIP71Parser.parse(it) }
             .distinctBy { it.id }
 
         // Cache to Room

@@ -1,17 +1,25 @@
 package com.videorelay.app.data.nostr
 
 object NostrConstants {
+    // Ordered by speed/reliability — fast aggregators first
     val DEFAULT_RELAYS = listOf(
-        "wss://relay.nostr.band",
+        "wss://relay.nostr.band",     // fast aggregator, good video coverage
+        "wss://relay.primal.net",     // fast aggregator
         "wss://relay.damus.io",
-        "wss://relay.primal.net",
-        "wss://relay.flare.pub",
-        "wss://video.nostr.build",
         "wss://nos.lol",
+        "wss://video.nostr.build",    // video-specific relay
+        "wss://relay.flare.pub",
         "wss://relay.snort.social",
         "wss://nostr.wine",
         "wss://purplepag.es",
         "wss://offchain.pub",
+    )
+
+    // Query these first for fastest initial load
+    val FAST_RELAYS = listOf(
+        "wss://relay.nostr.band",
+        "wss://relay.primal.net",
+        "wss://video.nostr.build",
     )
 
     const val VIDEO_KIND = 21

@@ -71,6 +71,7 @@ fun VideoRelayNavHost() {
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = NavigationBarDefaults.Elevation,
                 ) {
                     bottomNavItems.forEach { item ->

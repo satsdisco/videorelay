@@ -20,7 +20,7 @@ class RelayPool @Inject constructor(
 ) {
     companion object {
         private const val TAG = "RelayPool"
-        private const val TIMEOUT_MS = 8000L
+        private const val TIMEOUT_MS = 4000L  // 4s timeout — don't let slow relays block the UI
     }
 
     private val connections = ConcurrentHashMap<String, WebSocket>()
