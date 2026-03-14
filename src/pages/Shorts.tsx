@@ -237,7 +237,7 @@ const Shorts = () => {
           deduped.map(v => probeVideo(v.id, v.videoUrl))
         );
 
-        const filtered = deduped.filter((v, i) => {
+        let filtered = deduped.filter((v, i) => {
           const meta: VideoMeta | null = probeResults[i].status === "fulfilled"
             ? probeResults[i].value
             : getCachedMeta(v.id);
