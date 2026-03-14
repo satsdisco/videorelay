@@ -47,9 +47,10 @@ export function extractPoster(videoId: string, videoUrl: string): Promise<string
 
   const promise = new Promise<string | null>((resolve) => {
     const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
     video.muted = true;
     video.preload = "metadata";
+    // Try with crossOrigin first for canvas access
+    video.crossOrigin = "anonymous";
 
     const cleanup = () => {
       video.removeAttribute("src");

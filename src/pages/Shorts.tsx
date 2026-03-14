@@ -1,40 +1,91 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Zap, Share2, MessageSquare, User } from "lucide-react";
+import { ArrowLeft, Zap, Share2, MessageSquare, Volume2, VolumeX, Play } from "lucide-react";
 import { getPool, DEFAULT_RELAYS, parseVideoEvent, timeAgo, type ParsedVideo, ALL_VIDEO_KINDS } from "@/lib/nostr";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { probeVideo, getCachedMeta, type VideoMeta } from "@/lib/durationProbe";
+import { getCachedPoster } from "@/lib/posterCache";
+import { useToast } from "@/hooks/use-toast";
 import type { Event } from "nostr-tools";
+
+// Global mute state shared across all shorts
+let globalMuted = true;
 
 const ShortVideoItem = ({
   video,
   isActive,
+  onMuteToggle,
+  muted,
 }: {
   video: ParsedVideo;
   isActive: boolean;
+  onMuteToggle: () => void;
+  muted: boolean;
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
   const { profile } = useNostrProfile(video.pubkey);
+  const { toast } = useToast();
   const displayName = profile?.displayName || profile?.name || video.pubkey.slice(0, 10) + "...";
+  const [paused, setPaused] = useState(false);
+  const poster = video.thumbnail || getCachedPoster(video.id) || undefined;
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = muted;
+  }, [muted]);
 
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
     if (isActive) {
-      v.play().catch(() => {});
+      v.muted = globalMuted;
+      v.currentTime = 0;
+      const playPromise = v.play();
+      if (playPromise) {
+        playPromise.catch(() => {
+          // Autoplay blocked — try muted
+          v.muted = true;
+          v.play().catch(() => {});
+        });
+      }
+      setPaused(false);
     } else {
       v.pause();
       v.currentTime = 0;
+      setPaused(false);
     }
   }, [isActive]);
+
+  const togglePlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) {
+      v.play().catch(() => {});
+      setPaused(false);
+    } else {
+      v.pause();
+      setPaused(true);
+    }
+  };
 
   const handleShare = async () => {
     const url = `${window.location.origin}/watch/${video.id}`;
     if (navigator.share) {
       try { await navigator.share({ title: video.title, url }); return; } catch {}
     }
-    navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(url);
+    toast({ title: "Link copied!" });
+  };
+
+  const handleZap = () => {
+    // Navigate to watch page where full zap flow lives
+    navigate(`/watch/${video.id}`);
+  };
+
+  const handleComment = () => {
+    navigate(`/watch/${video.id}`);
   };
 
   return (
@@ -44,14 +95,29 @@ const ShortVideoItem = ({
         src={video.videoUrl}
         loop
         playsInline
-        muted={false}
+        muted={muted}
         className="h-full w-full object-contain"
-        poster={video.thumbnail || undefined}
-        onClick={(e) => {
-          const v = e.currentTarget;
-          v.paused ? v.play() : v.pause();
-        }}
+        poster={poster}
+        preload="auto"
+        onClick={togglePlay}
       />
+
+      {/* Play indicator when paused */}
+      {paused && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-16 h-16 bg-black/40 rounded-full flex items-center justify-center backdrop-blur-sm">
+            <Play className="w-8 h-8 text-white ml-1" fill="white" />
+          </div>
+        </div>
+      )}
+
+      {/* Mute toggle */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onMuteToggle(); }}
+        className="absolute top-4 right-4 z-10 p-2.5 rounded-full bg-black/40 backdrop-blur-sm"
+      >
+        {muted ? <VolumeX className="w-5 h-5 text-white" /> : <Volume2 className="w-5 h-5 text-white" />}
+      </button>
 
       {/* Right action buttons */}
       <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5 z-10">
@@ -68,7 +134,7 @@ const ShortVideoItem = ({
           )}
         </button>
 
-        <button className="flex flex-col items-center gap-1">
+        <button onClick={handleZap} className="flex flex-col items-center gap-1">
           <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
             <Zap className="w-5 h-5 text-primary" fill="currentColor" />
           </div>
@@ -77,11 +143,11 @@ const ShortVideoItem = ({
           </span>
         </button>
 
-        <button className="flex flex-col items-center gap-1">
+        <button onClick={handleComment} className="flex flex-col items-center gap-1">
           <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
             <MessageSquare className="w-5 h-5 text-white" />
           </div>
-          <span className="text-[10px] text-white font-medium">Chat</span>
+          <span className="text-[10px] text-white font-medium">Comments</span>
         </button>
 
         <button onClick={handleShare} className="flex flex-col items-center gap-1">
@@ -123,19 +189,25 @@ const Shorts = () => {
   const [shorts, setShorts] = useState<ParsedVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [muted, setMuted] = useState(true);
+
+  const toggleMute = useCallback(() => {
+    setMuted(prev => {
+      globalMuted = !prev;
+      return !prev;
+    });
+  }, []);
 
   useEffect(() => {
     const fetchShorts = async () => {
       try {
         const pool = getPool();
 
-        // Fetch lots of videos, then filter by aspect ratio
         const queries = [
           pool.querySync(DEFAULT_RELAYS.slice(0, 5), {
             kinds: ALL_VIDEO_KINDS as number[],
             limit: 300,
           }),
-          // Also try tagged shorts
           pool.querySync(DEFAULT_RELAYS.slice(0, 4), {
             kinds: ALL_VIDEO_KINDS as number[],
             "#t": ["shorts", "short", "clip", "reel", "vertical"],
@@ -153,7 +225,6 @@ const Shorts = () => {
           .map(parseVideoEvent)
           .filter((v): v is ParsedVideo => v !== null);
 
-        // Dedupe
         const seen = new Set<string>();
         const deduped = parsed.filter((v) => {
           if (seen.has(v.id)) return false;
@@ -161,33 +232,28 @@ const Shorts = () => {
           return true;
         });
 
-        // Probe all candidates for duration + aspect ratio
         const probeResults = await Promise.allSettled(
           deduped.map(v => probeVideo(v.id, v.videoUrl))
         );
 
-        // Filter: vertical videos OR short-tagged content
-        const shorts = deduped.filter((v, i) => {
+        const filtered = deduped.filter((v, i) => {
           const meta: VideoMeta | null = probeResults[i].status === "fulfilled"
             ? probeResults[i].value
             : getCachedMeta(v.id);
 
-          // Vertical video = short (any duration)
           if (meta?.isVertical) return true;
-          // Explicitly tagged as short
           if (v.isShort) return true;
-          // Short duration (≤60s) even if horizontal
           const dur = meta?.duration || v.durationSeconds;
           return dur > 0 && dur <= 60;
         });
 
-        // Shuffle — different order every visit
-        for (let i = shorts.length - 1; i > 0; i--) {
+        // Shuffle
+        for (let i = filtered.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
-          [shorts[i], shorts[j]] = [shorts[j], shorts[i]];
+          [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
         }
 
-        setShorts(shorts);
+        setShorts(filtered);
       } catch (err) {
         console.error("Failed to fetch shorts:", err);
       } finally {
@@ -197,35 +263,40 @@ const Shorts = () => {
     fetchShorts();
   }, []);
 
-  // Observe which short is in view
-  const observerCallback = useCallback((entries: IntersectionObserverEntry[]) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) {
-        const idx = Number(entry.target.getAttribute("data-index"));
-        if (!isNaN(idx)) setActiveIndex(idx);
-      }
-    }
-  }, []);
-
+  // Intersection observer for active detection
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || shorts.length === 0) return;
 
-    const observer = new IntersectionObserver(observerCallback, {
-      root: container,
-      threshold: 0.6,
-    });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const idx = Number(entry.target.getAttribute("data-index"));
+            if (!isNaN(idx)) setActiveIndex(idx);
+          }
+        }
+      },
+      { root: container, threshold: 0.6 }
+    );
 
-    const items = container.querySelectorAll("[data-index]");
-    items.forEach((el) => observer.observe(el));
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      const items = container.querySelectorAll("[data-index]");
+      items.forEach((el) => observer.observe(el));
+    }, 100);
 
-    return () => observer.disconnect();
-  }, [shorts, observerCallback]);
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [shorts]);
 
   if (loading) {
     return (
-      <div className="h-screen bg-black flex items-center justify-center">
+      <div className="h-screen bg-black flex flex-col items-center justify-center gap-3">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-white/60 text-sm">Finding shorts...</p>
       </div>
     );
   }
@@ -247,7 +318,6 @@ const Shorts = () => {
 
   return (
     <div className="h-screen bg-black relative">
-      {/* Back button */}
       <button
         onClick={() => navigate("/")}
         className="fixed top-4 left-4 z-50 p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
@@ -255,23 +325,23 @@ const Shorts = () => {
         <ArrowLeft className="w-5 h-5 text-white" />
       </button>
 
-      {/* Shorts title */}
       <div className="fixed top-4 left-14 z-50">
         <span className="text-white font-bold text-lg">Shorts</span>
+        <span className="text-white/40 text-sm ml-2">{shorts.length} videos</span>
       </div>
 
-      {/* Vertical snap scroll container */}
       <div
         ref={containerRef}
         className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
       >
         {shorts.map((video, idx) => (
-          <div
-            key={video.id}
-            data-index={idx}
-            className="h-screen w-full"
-          >
-            <ShortVideoItem video={video} isActive={idx === activeIndex} />
+          <div key={video.id} data-index={idx} className="h-screen w-full">
+            <ShortVideoItem
+              video={video}
+              isActive={idx === activeIndex}
+              onMuteToggle={toggleMute}
+              muted={muted}
+            />
           </div>
         ))}
       </div>
