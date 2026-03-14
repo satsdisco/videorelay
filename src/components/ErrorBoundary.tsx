@@ -23,10 +23,27 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("ErrorBoundary caught:", error, errorInfo);
+
+    // Auto-reload on stale chunk errors (happens after deploys)
+    if (error.message?.includes("dynamically imported module") ||
+        error.message?.includes("Failed to fetch") ||
+        error.message?.includes("Loading chunk")) {
+      // Only auto-reload once to avoid infinite loops
+      const key = "videorelay_chunk_reload";
+      const last = localStorage.getItem(key);
+      const now = Date.now();
+      if (!last || now - parseInt(last) > 30000) {
+        localStorage.setItem(key, now.toString());
+        window.location.reload();
+        return;
+      }
+    }
   }
 
   handleReset = () => {
     this.setState({ hasError: false, error: null });
+    // Force full reload to get fresh chunks
+    window.location.reload();
   };
 
   render() {
