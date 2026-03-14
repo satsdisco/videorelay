@@ -258,11 +258,23 @@ const VideoPlayer = ({ src, poster, autoPlay = true, onEnded }: VideoPlayerProps
       }}
     >
       {/* Blurred background fill for vertical/non-16:9 videos */}
-      {poster && (
-        <div
-          className="absolute inset-0 bg-cover bg-center blur-2xl scale-110 opacity-30"
-          style={{ backgroundImage: `url(${poster})` }}
-        />
+      {(poster || src) && (
+        <div className="absolute inset-0 overflow-hidden">
+          {poster ? (
+            <div
+              className="absolute inset-[-20px] bg-cover bg-center blur-3xl opacity-60 saturate-150"
+              style={{ backgroundImage: `url(${poster})` }}
+            />
+          ) : (
+            <video
+              src={isHlsUrl(src) ? undefined : src}
+              className="absolute inset-[-20px] w-[calc(100%+40px)] h-[calc(100%+40px)] object-cover blur-3xl opacity-50 saturate-150"
+              muted
+              playsInline
+              preload="metadata"
+            />
+          )}
+        </div>
       )}
       <video
         ref={videoRef}
@@ -270,7 +282,7 @@ const VideoPlayer = ({ src, poster, autoPlay = true, onEnded }: VideoPlayerProps
         poster={poster}
         autoPlay={isHlsUrl(src) ? false : autoPlay}
         playsInline
-        className="relative w-full h-full object-contain"
+        className="relative w-full h-full object-contain z-[1]"
       />
 
       {/* Center play button when paused */}

@@ -143,15 +143,30 @@ export function parseVideoEvent(event: Event): ParsedVideo | null {
     if (imageMatches) thumbnail = imageMatches[0];
   }
 
-  // For kind 1: use first line of content as title (strip URLs)
-  let title = getTag("title") || getTag("subject") || "";
-  if (!title && event.kind === 1 && event.content) {
-    const firstLine = event.content.split("\n")[0]
-      .replace(VIDEO_URL_REGEX, "")
-      .replace(IMAGE_URL_REGEX, "")
-      .replace(/https?:\/\/[^\s]+/g, "")
-      .trim();
-    title = firstLine || "Untitled Video";
+  // Build title from multiple fallback sources
+  let title = getTag("title") || getTag("subject") || getTag("name") || "";
+  if (!title && event.content) {
+    // Use first meaningful line of content (strip URLs)
+    const lines = event.content.split("\n");
+    for (const line of lines) {
+      const cleaned = line
+        .replace(VIDEO_URL_REGEX, "")
+        .replace(IMAGE_URL_REGEX, "")
+        .replace(/https?:\/\/[^\s]+/g, "")
+        .replace(/#\w+/g, "")  // strip hashtags
+        .trim();
+      if (cleaned && cleaned.length > 3) {
+        title = cleaned.length > 120 ? cleaned.slice(0, 120) + "…" : cleaned;
+        break;
+      }
+    }
+  }
+  // Last resort: use hashtags as title
+  if (!title) {
+    const hashtags = getAllTags("t");
+    if (hashtags.length > 0) {
+      title = hashtags.slice(0, 3).map(t => `#${t}`).join(" ");
+    }
   }
   if (!title) title = "Untitled Video";
 

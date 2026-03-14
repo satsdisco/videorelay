@@ -18,8 +18,10 @@ interface VideoCardProps {
 }
 
 const VideoCard = ({ video, cachedProfile }: VideoCardProps) => {
-  const { profile: fetchedProfile } = useNostrProfile(cachedProfile !== undefined ? null : video.pubkey);
-  const profile = cachedProfile || fetchedProfile;
+  // If batch didn't resolve a name, fall back to individual fetch
+  const needsFetch = !cachedProfile?.displayName && !cachedProfile?.name;
+  const { profile: fetchedProfile } = useNostrProfile(needsFetch ? video.pubkey : null);
+  const profile = (cachedProfile?.displayName || cachedProfile?.name) ? cachedProfile : (fetchedProfile || cachedProfile);
   const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
 

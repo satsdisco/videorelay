@@ -7,6 +7,7 @@ import {
   Radio,
   Film,
   Settings,
+  Upload,
 } from "lucide-react";
 
 const links = [
@@ -16,6 +17,7 @@ const links = [
   { icon: Users, label: "Following", path: "/following" },
   { icon: Radio, label: "Live", path: "/live" },
   { icon: Film, label: "Shorts", path: "/shorts" },
+  { icon: Upload, label: "Upload", path: "/upload" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 

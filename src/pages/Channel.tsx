@@ -1,18 +1,54 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { ArrowLeft, ExternalLink, Zap, Clock, TrendingUp } from "lucide-react";
+import { ArrowLeft, ExternalLink, Zap, Clock, TrendingUp, UserPlus, UserCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { useNostrVideos } from "@/hooks/useNostrVideos";
+import { useNostrFollow } from "@/hooks/useNostrFollow";
+import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { useRelayStore } from "@/hooks/useRelayStore";
+import { useZap } from "@/hooks/useZap";
 import { shortenNpub } from "@/lib/nostr";
 import VideoCard from "@/components/VideoCard";
 import MiniSidebar from "@/components/MiniSidebar";
+
+/** Linkify URLs in text, truncate to maxLen chars */
+function FormattedBio({ text, maxLen = 300 }: { text: string; maxLen?: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const needsTruncate = text.length > maxLen;
+  const display = needsTruncate && !expanded ? text.slice(0, maxLen) + "…" : text;
+
+  const parts = display.split(/(https?:\/\/[^\s]+)/g);
+  return (
+    <div className="mt-4 text-sm text-secondary-foreground max-w-2xl">
+      <p className="whitespace-pre-wrap">
+        {parts.map((part, i) =>
+          part.match(/^https?:\/\//) ? (
+            <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+              {(() => { try { return new URL(part).hostname; } catch { return part; } })()}
+            </a>
+          ) : part
+        )}
+      </p>
+      {needsTruncate && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-1 mt-1 text-xs text-primary hover:underline"
+        >
+          {expanded ? <><ChevronUp className="w-3 h-3" /> Show less</> : <><ChevronDown className="w-3 h-3" /> Show more</>}
+        </button>
+      )}
+    </div>
+  );
+}
 
 const Channel = () => {
   const { pubkey } = useParams<{ pubkey: string }>();
   const navigate = useNavigate();
   const { activeRelays } = useRelayStore();
   const { profile, loading: profileLoading } = useNostrProfile(pubkey ?? null);
+  const { pubkey: myPubkey } = useNostrAuth();
+  const { isFollowing, toggleFollow } = useNostrFollow(pubkey ?? null);
+  const { zap, loading: zapLoading } = useZap();
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
 
   const { videos, loading: videosLoading } = useNostrVideos({
@@ -25,6 +61,14 @@ const Channel = () => {
   const longForm = useMemo(() => videos.filter((v) => !v.isShort), [videos]);
   const displayName = profile?.displayName || profile?.name || (pubkey ? shortenNpub(pubkey) : "Unknown");
   const totalZaps = useMemo(() => videos.reduce((sum, v) => sum + v.zapCount, 0), [videos]);
+  const bannerUrl = profile?.banner;
+  const isOwnChannel = myPubkey === pubkey;
+
+  const handleZapChannel = async () => {
+    if (!pubkey) return;
+    // Zap the channel creator (no specific event)
+    await zap({ pubkey, eventId: "", amount: 1000 });
+  };
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
@@ -37,19 +81,35 @@ const Channel = () => {
         <h1 className="text-sm font-medium text-foreground truncate">{displayName}'s Channel</h1>
       </div>
 
-      {/* Banner / Profile header */}
+      {/* Banner */}
       <div className="relative">
-        <div className="h-32 bg-gradient-to-r from-primary/30 via-primary/10 to-accent/20" />
+        {bannerUrl ? (
+          <div className="h-40 md:h-52 overflow-hidden">
+            <img
+              src={bannerUrl}
+              alt="Channel banner"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        ) : (
+          <div className="h-32 bg-gradient-to-r from-primary/30 via-primary/10 to-accent/20" />
+        )}
+
         <div className="max-w-5xl mx-auto px-6 md:pl-[88px] -mt-12">
-          <div className="flex items-end gap-5">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-5">
+            {/* Avatar */}
             {profile?.picture ? (
-              <img src={profile.picture} alt={displayName} className="w-24 h-24 rounded-full object-cover border-4 border-background shadow-xl" />
+              <img src={profile.picture} alt={displayName} className="w-24 h-24 rounded-full object-cover border-4 border-background shadow-xl shrink-0" />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl font-bold text-primary-foreground border-4 border-background shadow-xl">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl font-bold text-primary-foreground border-4 border-background shadow-xl shrink-0">
                 {displayName[0]?.toUpperCase() || "?"}
               </div>
             )}
-            <div className="pb-2">
+
+            <div className="flex-1 min-w-0 pb-2">
               <h2 className="text-2xl font-bold text-foreground">{displayName}</h2>
               {profile?.nip05 && <p className="text-sm text-primary">{profile.nip05}</p>}
               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
@@ -62,11 +122,38 @@ const Channel = () => {
                 )}
               </div>
             </div>
+
+            {/* Action buttons */}
+            {!isOwnChannel && pubkey && (
+              <div className="flex items-center gap-2 pb-2 shrink-0">
+                <button
+                  onClick={() => toggleFollow()}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    isFollowing
+                      ? "bg-secondary text-foreground hover:bg-destructive/10 hover:text-destructive"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  }`}
+                >
+                  {isFollowing ? (
+                    <><UserCheck className="w-4 h-4" /> Following</>
+                  ) : (
+                    <><UserPlus className="w-4 h-4" /> Follow</>
+                  )}
+                </button>
+                <button
+                  onClick={handleZapChannel}
+                  disabled={zapLoading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                >
+                  <Zap className="w-4 h-4" fill="currentColor" />
+                  {zapLoading ? "..." : "Zap"}
+                </button>
+              </div>
+            )}
           </div>
 
-          {profile?.about && (
-            <p className="mt-4 text-sm text-secondary-foreground max-w-2xl whitespace-pre-wrap">{profile.about}</p>
-          )}
+          {/* Bio */}
+          {profile?.about && <FormattedBio text={profile.about} />}
         </div>
       </div>
 

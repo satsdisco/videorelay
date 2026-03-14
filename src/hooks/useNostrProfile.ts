@@ -9,8 +9,10 @@ export interface NostrProfileData {
   name?: string;
   displayName?: string;
   picture?: string;
+  banner?: string;
   about?: string;
   nip05?: string;
+  lud16?: string;
 }
 
 export function useNostrProfile(pubkey: string | null) {
@@ -45,8 +47,10 @@ export function useNostrProfile(pubkey: string | null) {
               name: metadata.name,
               displayName: metadata.display_name || metadata.displayName,
               picture: metadata.picture,
+              banner: metadata.banner,
               about: metadata.about,
               nip05: metadata.nip05,
+              lud16: metadata.lud16,
             };
             profileCache.set(pubkey, p);
             setProfile(p);
@@ -100,8 +104,10 @@ export function useBatchProfiles(pubkeys: string[]) {
             name: metadata.name,
             displayName: metadata.display_name || metadata.displayName,
             picture: metadata.picture,
+            banner: metadata.banner,
             about: metadata.about,
             nip05: metadata.nip05,
+            lud16: metadata.lud16,
           };
           profileCache.set(event.pubkey, p);
         } catch {}
