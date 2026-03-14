@@ -20,18 +20,20 @@ interface NostrAuthState {
 
 const NostrAuthContext = createContext<NostrAuthState | null>(null);
 
+import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
+
 const AUTH_KEY = "videorelay_auth";
 
 function persistAuth(pk: string | null) {
   if (pk) {
-    localStorage.setItem(AUTH_KEY, pk);
+    safeSetItem(AUTH_KEY, pk);
   } else {
-    localStorage.removeItem(AUTH_KEY);
+    try { localStorage.removeItem(AUTH_KEY); } catch {}
   }
 }
 
 function loadPersistedAuth(): string | null {
-  try { return localStorage.getItem(AUTH_KEY); } catch { return null; }
+  return safeGetItem(AUTH_KEY);
 }
 
 export function NostrAuthProvider({ children }: { children: ReactNode }) {
