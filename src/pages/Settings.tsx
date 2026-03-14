@@ -21,7 +21,7 @@ import { DEFAULT_RELAYS } from "@/lib/nostr";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getCuratedCreators, addCuratedCreator, removeCuratedCreator, npubToHex, ADMIN_PUBKEYS, type CuratedCreator } from "@/lib/curatedCreators";
+import { getCuratedCreators, addCuratedCreator, removeCuratedCreator, npubToHex, publishCuratedList, fetchCuratedFromRelays, ADMIN_PUBKEYS, type CuratedCreator } from "@/lib/curatedCreators";
 import { useNostrProfile } from "@/hooks/useNostrProfile";
 import { Star, UserPlus as UserPlusIcon } from "lucide-react";
 
@@ -315,6 +315,9 @@ const CuratedCreatorsSettings = () => {
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [hasUnsaved, setHasUnsaved] = useState(false);
 
   const handleAdd = () => {
     setError("");
@@ -348,13 +351,54 @@ const CuratedCreatorsSettings = () => {
     }
     setCreators(getCuratedCreators());
     setInput("");
-    setSuccess(`Added ${hex.slice(0, 8)}… — their videos will appear in Featured Creators`);
+    setHasUnsaved(true);
+    setSuccess(`Added — publish to Nostr to save permanently`);
     setTimeout(() => setSuccess(""), 5000);
   };
 
   const handleRemove = (pubkey: string) => {
     removeCuratedCreator(pubkey);
     setCreators(getCuratedCreators());
+    setHasUnsaved(true);
+  };
+
+  const handlePublish = async () => {
+    setPublishing(true);
+    setError("");
+    setSuccess("");
+    try {
+      const ok = await publishCuratedList();
+      if (ok) {
+        setSuccess("Published to Nostr — this list is now permanent across all devices ⚡");
+        setHasUnsaved(false);
+      } else {
+        setError("Failed to publish — make sure your Nostr extension is connected");
+      }
+    } catch (err) {
+      setError(`Publish error: ${err instanceof Error ? err.message : "Unknown"}`);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setError("");
+    setSuccess("");
+    try {
+      const fromRelays = await fetchCuratedFromRelays();
+      if (fromRelays && fromRelays.length > 0) {
+        setCreators(fromRelays);
+        setSuccess(`Synced ${fromRelays.length} creators from Nostr relays`);
+        setHasUnsaved(false);
+      } else {
+        setError("No curated list found on relays yet — publish one first");
+      }
+    } catch {
+      setError("Failed to sync from relays");
+    } finally {
+      setSyncing(false);
+    }
   };
 
   return (
@@ -362,8 +406,32 @@ const CuratedCreatorsSettings = () => {
       <div>
         <h3 className="text-base font-semibold text-foreground mb-1">Curated Creators</h3>
         <p className="text-sm text-muted-foreground">
-          Pin creators whose videos get featured on the home page. Their latest videos will appear in a "Featured" section at the top of the feed.
+          Featured creators on the home page. Stored on Nostr (NIP-51) so it persists across all devices.
         </p>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <button
+          onClick={handlePublish}
+          disabled={publishing}
+          className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+            hasUnsaved
+              ? "bg-primary text-primary-foreground hover:bg-primary/90 animate-pulse"
+              : "bg-primary text-primary-foreground hover:bg-primary/90"
+          }`}
+        >
+          <Zap className="w-4 h-4" />
+          {publishing ? "Publishing..." : hasUnsaved ? "Publish Changes ⚡" : "Publish to Nostr"}
+        </button>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          className="px-4 py-2.5 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+        >
+          <RotateCcw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Syncing..." : "Sync"}
+        </button>
       </div>
 
       {/* Add creator */}
@@ -395,6 +463,7 @@ const CuratedCreatorsSettings = () => {
         </div>
       ) : (
         <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{creators.length} creator{creators.length !== 1 ? "s" : ""}</p>
           {creators.map((c) => (
             <CreatorRow key={c.pubkey} creator={c} onRemove={() => handleRemove(c.pubkey)} />
           ))}

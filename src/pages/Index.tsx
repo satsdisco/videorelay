@@ -17,7 +17,7 @@ import { useFollowList } from "@/hooks/useFollowList";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Loader2, WifiOff, RefreshCw, Zap, TrendingUp, Clock, ChevronLeft, ChevronRight, Flame, Users, Calendar, Trophy, Star } from "lucide-react";
 import { getRandomLoadingMessage, getRandomEmptyMessage, getRandomErrorMessage } from "@/lib/loadingMessages";
-import { getCuratedPubkeys } from "@/lib/curatedCreators";
+import { getCuratedPubkeys, fetchCuratedFromRelays } from "@/lib/curatedCreators";
 
 const LoadingState = () => {
   const [message, setMessage] = useState(getRandomLoadingMessage);
@@ -176,8 +176,16 @@ const Index = ({ activeView, setActiveView, mobileSearchOpen, setMobileSearchOpe
     enabled: activeView === "home",
   });
 
-  // Curated creators — fetch their videos for Featured section on home
-  const curatedPubkeys = useMemo(() => getCuratedPubkeys(), []);
+  // Curated creators — fetch from Nostr relays, fall back to localStorage/hardcoded
+  const [curatedPubkeys, setCuratedPubkeys] = useState<string[]>(() => getCuratedPubkeys());
+  useEffect(() => {
+    // Background fetch from relays to get latest list
+    fetchCuratedFromRelays().then(creators => {
+      if (creators && creators.length > 0) {
+        setCuratedPubkeys(creators.map(c => c.pubkey));
+      }
+    });
+  }, []);
   const { videos: curatedVideos, loading: curatedLoading } = useNostrVideos({
     relays: activeRelays,
     authors: curatedPubkeys.length > 0 ? curatedPubkeys : undefined,
