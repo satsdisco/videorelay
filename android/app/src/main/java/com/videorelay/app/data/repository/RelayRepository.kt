@@ -50,7 +50,7 @@ class RelayRepository @Inject constructor(
 
     suspend fun saveRelays(relays: List<RelayEntry>) {
         context.relayDataStore.edit { prefs ->
-            prefs[key] = json.encodeToString(relays)
+            prefs[key] = json.encodeToString(kotlinx.serialization.builtins.ListSerializer(RelayEntry.serializer()), relays)
         }
     }
 

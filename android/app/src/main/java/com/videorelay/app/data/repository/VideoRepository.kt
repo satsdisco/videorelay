@@ -96,7 +96,7 @@ class VideoRepository @Inject constructor(
                             arr.jsonArray[0].jsonPrimitive.content == "amount"
                         }
                         amountTag?.let {
-                            amount = (it.jsonArray[1].jsonPrimitive.long / 1000).toInt()
+                            amount = (it.jsonArray[1].jsonPrimitive.content.toLong() / 1000).toInt()
                         }
                     } catch (_: Exception) {}
                 }

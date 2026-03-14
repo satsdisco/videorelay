@@ -42,7 +42,7 @@ fun LiveScreen(
                 onRetry = { viewModel.refresh() },
             )
             uiState.streams.isEmpty() -> EmptyState(
-                icon = Icons.Default.Stream,
+                icon = Icons.Filled.Stream,
                 title = "No live streams",
                 subtitle = "Check back later for live content",
             )
@@ -89,7 +89,7 @@ fun LiveScreen(
                                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             ) {
                                                 Icon(
-                                                    Icons.Default.FiberManualRecord,
+                                                    Icons.Filled.FiberManualRecord,
                                                     contentDescription = null,
                                                     tint = Color.White,
                                                     modifier = Modifier.size(8.dp),
@@ -119,7 +119,7 @@ fun LiveScreen(
                                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             ) {
                                                 Icon(
-                                                    Icons.Default.Visibility,
+                                                    Icons.Filled.Visibility,
                                                     contentDescription = null,
                                                     modifier = Modifier.size(12.dp),
                                                     tint = MaterialTheme.colorScheme.inverseOnSurface,

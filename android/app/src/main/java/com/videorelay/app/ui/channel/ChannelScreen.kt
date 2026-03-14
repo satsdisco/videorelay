@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -132,7 +133,7 @@ fun ChannelScreen(
                     if (uiState.videos.isEmpty()) {
                         item {
                             EmptyState(
-                                icon = Icons.Default.VideoLibrary,
+                                icon = Icons.Filled.Info,
                                 title = "No videos yet",
                                 subtitle = "This creator hasn't published any videos",
                             )
@@ -143,7 +144,3 @@ fun ChannelScreen(
         }
     }
 }
-
-// Need to add this import for the missing icon
-private val Icons.Default.VideoLibrary: androidx.compose.ui.graphics.vector.ImageVector
-    get() = Icons.Default.PlayCircle // fallback

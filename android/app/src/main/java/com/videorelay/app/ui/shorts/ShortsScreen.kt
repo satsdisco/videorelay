@@ -175,9 +175,9 @@ fun ShortsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                ShortActionButton(Icons.Default.ElectricBolt, formatZapCount(short.zapCount)) {}
-                ShortActionButton(Icons.Default.ChatBubble, "") {}
-                ShortActionButton(Icons.Default.Share, "Share") {}
+                ShortActionButton(Icons.Filled.ElectricBolt, formatZapCount(short.zapCount)) {}
+                ShortActionButton(Icons.Filled.ChatBubble, "") {}
+                ShortActionButton(Icons.Filled.Share, "Share") {}
             }
         }
     }

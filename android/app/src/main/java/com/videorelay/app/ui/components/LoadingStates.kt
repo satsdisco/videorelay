@@ -101,7 +101,7 @@ fun ErrorScreen(
     modifier: Modifier = Modifier,
 ) {
     EmptyState(
-        icon = Icons.Default.ErrorOutline,
+        icon = Icons.Filled.ErrorOutline,
         title = "Something went wrong",
         subtitle = message,
         action = if (onRetry != null) "Retry" else null,

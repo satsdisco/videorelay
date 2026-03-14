@@ -58,7 +58,7 @@ fun SettingsScreen(
                         if (uiState.loggedInPubkey != null) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    Icons.Default.CheckCircle,
+                                    Icons.Filled.CheckCircle,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
@@ -75,7 +75,7 @@ fun SettingsScreen(
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    Icons.Default.AccountCircle,
+                                    Icons.Filled.AccountCircle,
                                     contentDescription = null,
                                     modifier = Modifier.size(40.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -124,7 +124,7 @@ fun SettingsScreen(
                     )
                     Row {
                         TextButton(onClick = { showAddRelay = !showAddRelay }) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Add")
                         }
@@ -158,7 +158,7 @@ fun SettingsScreen(
                             },
                             enabled = newRelayUrl.startsWith("wss://"),
                         ) {
-                            Icon(Icons.Default.Check, "Add")
+                            Icon(Icons.Filled.Check, "Add")
                         }
                     }
                 }
@@ -190,7 +190,7 @@ fun SettingsScreen(
                         )
                         IconButton(onClick = { viewModel.removeRelay(relay.url) }) {
                             Icon(
-                                Icons.Default.Close,
+                                Icons.Filled.Close,
                                 contentDescription = "Remove",
                                 modifier = Modifier.size(16.dp),
                             )
@@ -245,14 +245,14 @@ fun SettingsScreen(
                                 onClick = { /* TODO: open website */ },
                                 label = { Text("Website") },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Language, null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.Language, null, modifier = Modifier.size(16.dp))
                                 },
                             )
                             AssistChip(
                                 onClick = { /* TODO: open GitHub */ },
                                 label = { Text("Source") },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Code, null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.Code, null, modifier = Modifier.size(16.dp))
                                 },
                             )
                         }

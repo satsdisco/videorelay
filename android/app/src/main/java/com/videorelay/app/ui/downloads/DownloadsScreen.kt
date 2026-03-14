@@ -35,7 +35,7 @@ fun DownloadsScreen(
 
         if (downloads.isEmpty()) {
             EmptyState(
-                icon = Icons.Default.DownloadDone,
+                icon = Icons.Filled.DownloadDone,
                 title = "No downloads",
                 subtitle = "Videos you save for offline viewing will appear here",
             )
@@ -85,7 +85,7 @@ fun DownloadsScreen(
                                     }
                                     "error" -> {
                                         Icon(
-                                            Icons.Default.Error,
+                                            Icons.Filled.Error,
                                             contentDescription = "Error",
                                             tint = MaterialTheme.colorScheme.error,
                                             modifier = Modifier
@@ -95,7 +95,7 @@ fun DownloadsScreen(
                                     }
                                     "complete" -> {
                                         Icon(
-                                            Icons.Default.CheckCircle,
+                                            Icons.Filled.CheckCircle,
                                             contentDescription = "Downloaded",
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier
@@ -136,7 +136,7 @@ fun DownloadsScreen(
                             // Delete button
                             IconButton(onClick = { viewModel.deleteDownload(download) }) {
                                 Icon(
-                                    Icons.Default.Delete,
+                                    Icons.Filled.Delete,
                                     contentDescription = "Delete",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

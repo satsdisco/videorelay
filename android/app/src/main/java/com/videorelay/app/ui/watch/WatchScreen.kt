@@ -170,13 +170,13 @@ fun WatchScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                         ) {
-                            ActionButton(Icons.Default.ElectricBolt, "⚡ ${formatZapCount(video.zapCount)}") {
+                            ActionButton(Icons.Filled.ElectricBolt, "⚡ ${formatZapCount(video.zapCount)}") {
                                 // TODO: zap flow
                             }
-                            ActionButton(Icons.Default.Share, "Share") {
+                            ActionButton(Icons.Filled.Share, "Share") {
                                 // TODO: share intent
                             }
-                            ActionButton(Icons.Default.Download, "Save") {
+                            ActionButton(Icons.Filled.Download, "Save") {
                                 // TODO: download
                             }
                         }

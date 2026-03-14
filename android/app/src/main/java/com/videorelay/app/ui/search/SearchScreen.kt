@@ -55,7 +55,7 @@ fun SearchScreen(
                     trailingIcon = {
                         if (uiState.query.isNotBlank()) {
                             IconButton(onClick = { viewModel.updateQuery("") }) {
-                                Icon(Icons.Default.Clear, "Clear")
+                                Icon(Icons.Filled.Clear, "Clear")
                             }
                         }
                     },
@@ -73,7 +73,7 @@ fun SearchScreen(
             }
             uiState.hasSearched && uiState.results.isEmpty() -> {
                 EmptyState(
-                    icon = Icons.Default.SearchOff,
+                    icon = Icons.Filled.SearchOff,
                     title = "No results",
                     subtitle = "Try different keywords or check your relay connections",
                 )

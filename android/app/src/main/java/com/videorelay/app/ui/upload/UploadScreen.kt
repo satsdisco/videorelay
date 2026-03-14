@@ -67,7 +67,7 @@ fun UploadScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            Icons.Default.CloudUpload,
+                            Icons.Filled.CloudUpload,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.primary,
@@ -96,7 +96,7 @@ fun UploadScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            Icons.Default.VideoFile,
+                            Icons.Filled.VideoFile,
                             contentDescription = null,
                             modifier = Modifier.size(40.dp),
                             tint = MaterialTheme.colorScheme.primary,
@@ -114,7 +114,7 @@ fun UploadScreen(
                             )
                         }
                         IconButton(onClick = { viewModel.reset() }) {
-                            Icon(Icons.Default.Close, "Remove")
+                            Icon(Icons.Filled.Close, "Remove")
                         }
                     }
                 }
@@ -165,7 +165,7 @@ fun UploadScreen(
                     verticalAlignment = Alignment.Top,
                 ) {
                     Icon(
-                        Icons.Default.Info,
+                        Icons.Filled.Info,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -223,7 +223,7 @@ fun UploadScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Default.CheckCircle,
+                                Icons.Filled.CheckCircle,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                             )
@@ -261,7 +261,7 @@ fun UploadScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Uploading...")
                 } else {
-                    Icon(Icons.Default.CloudUpload, contentDescription = null)
+                    Icon(Icons.Filled.CloudUpload, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Upload & Publish")
                 }

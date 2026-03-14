@@ -34,10 +34,10 @@ fun HomeScreen(
             },
             actions = {
                 IconButton(onClick = onSearchClick) {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
+                    Icon(Icons.Filled.Search, contentDescription = "Search")
                 }
                 IconButton(onClick = onSettingsClick) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings")
                 }
             },
         )

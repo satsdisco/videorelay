@@ -40,7 +40,7 @@ class ProfileRepository @Inject constructor(
         val event = events.maxByOrNull { it.created_at } ?: return null
 
         val profile = parseProfileEvent(event) ?: return null
-        profileDao.insertAll(listOf(ProfileEntity.from(profile)))
+        profileDao.insertAll(listOf(profile.toEntity()))
         return profile
     }
 
@@ -80,7 +80,7 @@ class ProfileRepository @Inject constructor(
             .forEach { (_, event) ->
                 parseProfileEvent(event)?.let { profile ->
                     result[profile.pubkey] = profile
-                    profileEntities.add(ProfileEntity.from(profile))
+                    profileEntities.add(profile.toEntity())
                 }
             }
 
@@ -125,30 +125,14 @@ private fun ProfileEntity.toDomain() = Profile(
     fetchedAt = fetchedAt,
 )
 
-private fun ProfileEntity.Companion.from(profile: Profile) = ProfileEntity(
-    pubkey = profile.pubkey,
-    name = profile.name,
-    displayName = profile.displayName,
-    picture = profile.picture,
-    banner = profile.banner,
-    about = profile.about,
-    lud16 = profile.lud16,
-    lud06 = profile.lud06,
-    nip05 = profile.nip05,
+private fun Profile.toEntity() = ProfileEntity(
+    pubkey = pubkey,
+    name = name,
+    displayName = displayName,
+    picture = picture,
+    banner = banner,
+    about = about,
+    lud16 = lud16,
+    lud06 = lud06,
+    nip05 = nip05,
 )
-
-// Add companion to ProfileEntity
-private val ProfileEntity.Companion: ProfileEntityCompanion get() = ProfileEntityCompanion
-private object ProfileEntityCompanion {
-    fun from(profile: Profile) = ProfileEntity(
-        pubkey = profile.pubkey,
-        name = profile.name,
-        displayName = profile.displayName,
-        picture = profile.picture,
-        banner = profile.banner,
-        about = profile.about,
-        lud16 = profile.lud16,
-        lud06 = profile.lud06,
-        nip05 = profile.nip05,
-    )
-}

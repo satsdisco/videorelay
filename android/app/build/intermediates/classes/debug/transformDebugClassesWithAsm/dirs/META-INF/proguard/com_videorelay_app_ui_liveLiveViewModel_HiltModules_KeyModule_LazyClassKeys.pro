@@ -1,0 +1,12 @@
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.settings.SettingsViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.settings.SettingsViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.home.HomeViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.home.HomeViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.search.SearchViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.search.SearchViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.channel.ChannelViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.channel.ChannelViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.shorts.ShortsViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.shorts.ShortsViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.live.LiveViewModel
+-keep,allowobfuscation,allowshrinking class com.videorelay.app.ui.live.LiveViewModel
