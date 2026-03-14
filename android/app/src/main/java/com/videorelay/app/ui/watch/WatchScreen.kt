@@ -1,8 +1,13 @@
 package com.videorelay.app.ui.watch
 
+import android.app.Activity
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.view.ViewGroup
+import android.view.WindowInsetsController
 import android.widget.FrameLayout
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,6 +45,16 @@ fun WatchScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var showZapDialog by remember { mutableStateOf(false) }
+    var isFullscreen by remember { mutableStateOf(false) }
+
+    val activity = context as? Activity
+
+    // Handle back press in fullscreen
+    BackHandler(enabled = isFullscreen) {
+        isFullscreen = false
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        showSystemBars(activity)
+    }
 
     // Initialize ExoPlayer
     val player = remember {
@@ -60,22 +75,28 @@ fun WatchScreen(
         viewModel.loadVideo(videoId)
     }
 
-    // Cleanup player
+    // Cleanup player + restore orientation
     DisposableEffect(Unit) {
-        onDispose { player.release() }
+        onDispose {
+            player.release()
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            showSystemBars(activity)
+        }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Video Player
+    if (isFullscreen) {
+        // Fullscreen mode — player takes entire screen
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f),
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
         ) {
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
                         this.player = player
+                        useController = true
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
                         layoutParams = FrameLayout.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -85,175 +106,273 @@ fun WatchScreen(
                 modifier = Modifier.fillMaxSize(),
             )
 
-            // Back button overlay
+            // Exit fullscreen button
             IconButton(
-                onClick = onBack,
+                onClick = {
+                    isFullscreen = false
+                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    showSystemBars(activity)
+                },
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp),
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
             ) {
                 Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    Icons.Filled.FullscreenExit,
+                    contentDescription = "Exit fullscreen",
                     tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(32.dp),
                 )
             }
         }
-
-        when {
-            uiState.isLoading -> {
-                LoadingScreen()
-            }
-            uiState.error != null -> {
-                ErrorScreen(message = uiState.error!!)
-            }
-            uiState.video != null -> {
-                val video = uiState.video!!
-                val profile = uiState.creatorProfile
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                ) {
-                    // Video info
-                    item {
-                        Text(
-                            text = video.title,
-                            style = MaterialTheme.typography.titleLarge,
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "${timeAgo(video.publishedAt)} · ${video.tags.joinToString(", ") { "#$it" }}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
-                    // Creator row
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onChannelClick(video.pubkey) },
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            AsyncImage(
-                                model = profile?.picture,
-                                contentDescription = profile?.bestName,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape),
+    } else {
+        // Normal mode
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+        ) {
+            // Video Player
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f),
+            ) {
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply {
+                            this.player = player
+                            useController = true
+                            setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                            layoutParams = FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT,
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = profile?.bestName ?: video.pubkey.take(12) + "...",
-                                    style = MaterialTheme.typography.titleSmall,
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                // Top bar overlay
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .fillMaxWidth()
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            isFullscreen = true
+                            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            hideSystemBars(activity)
+                        },
+                    ) {
+                        Icon(
+                            Icons.Filled.Fullscreen,
+                            contentDescription = "Fullscreen",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+            }
+
+            when {
+                uiState.isLoading -> {
+                    LoadingScreen()
+                }
+                uiState.error != null -> {
+                    ErrorScreen(message = uiState.error!!)
+                }
+                uiState.video != null -> {
+                    val video = uiState.video!!
+                    val profile = uiState.creatorProfile
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                    ) {
+                        // Video info
+                        item {
+                            Text(
+                                text = video.title,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "${timeAgo(video.publishedAt)} · ${video.tags.joinToString(", ") { "#$it" }}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        // Creator row
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onChannelClick(video.pubkey) },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                AsyncImage(
+                                    model = profile?.picture,
+                                    contentDescription = profile?.bestName,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape),
                                 )
-                                profile?.nip05?.takeIf { it.isNotBlank() }?.let {
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = it,
-                                        style = MaterialTheme.typography.bodySmall,
+                                        text = profile?.bestName ?: video.pubkey.take(12) + "...",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    profile?.nip05?.takeIf { it.isNotBlank() }?.let {
+                                        Text(
+                                            text = it,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        // Action row (zap, share, download)
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                            ) {
+                                ActionButton(Icons.Filled.ElectricBolt, "⚡ ${formatZapCount(video.zapCount)}") {
+                                    showZapDialog = true
+                                }
+                                ActionButton(Icons.Filled.Share, "Share") {
+                                    val shareText = "${video.title}\n\nhttps://videorelay.lol/watch/${video.id}"
+                                    val shareIntent = Intent.createChooser(
+                                        Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, shareText)
+                                            putExtra(Intent.EXTRA_SUBJECT, video.title)
+                                        },
+                                        "Share video"
+                                    )
+                                    context.startActivity(shareIntent)
+                                }
+                                ActionButton(Icons.Filled.Download, "Save") {
+                                    // TODO: download
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        // Description
+                        if (video.summary.isNotBlank()) {
+                            item {
+                                Text(
+                                    text = video.summary,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 4,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+
+                        // Comments header
+                        item {
+                            Text(
+                                text = "Comments (${uiState.comments.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
+                        if (uiState.comments.isEmpty()) {
+                            item {
+                                Text(
+                                    text = "No comments yet",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+
+                        // Comments
+                        items(uiState.comments) { comment ->
+                            val commentProfile = uiState.commentProfiles[comment.pubkey]
+                            Row(modifier = Modifier.padding(vertical = 8.dp)) {
+                                AsyncImage(
+                                    model = commentProfile?.picture,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "${commentProfile?.bestName ?: comment.pubkey.take(8)} · ${timeAgo(comment.publishedAt)}",
+                                        style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = comment.content,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-                        HorizontalDivider()
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
-                    // Action row (zap, share, download)
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                        ) {
-                            ActionButton(Icons.Filled.ElectricBolt, "⚡ ${formatZapCount(video.zapCount)}") {
-                                showZapDialog = true
-                            }
-                            ActionButton(Icons.Filled.Share, "Share") {
-                                val shareText = "${video.title}\n\nhttps://videorelay.lol/watch/${video.id}"
-                                val shareIntent = Intent.createChooser(
-                                    Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, shareText)
-                                        putExtra(Intent.EXTRA_SUBJECT, video.title)
-                                    },
-                                    "Share video"
-                                )
-                                context.startActivity(shareIntent)
-                            }
-                            ActionButton(Icons.Filled.Download, "Save") {
-                                // TODO: download
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        HorizontalDivider()
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
-                    // Comments header
-                    item {
-                        Text(
-                            text = "Comments (${uiState.comments.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    // Comments
-                    items(uiState.comments) { comment ->
-                        val commentProfile = uiState.commentProfiles[comment.pubkey]
-                        Row(modifier = Modifier.padding(vertical = 8.dp)) {
-                            AsyncImage(
-                                model = commentProfile?.picture,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape),
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
+                        // Related videos
+                        if (uiState.relatedVideos.isNotEmpty()) {
+                            item {
+                                Spacer(modifier = Modifier.height(24.dp))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                                Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "${commentProfile?.bestName ?: comment.pubkey.take(8)} · ${timeAgo(comment.publishedAt)}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    text = "More from this creator",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
-                                Text(
-                                    text = comment.content,
-                                    style = MaterialTheme.typography.bodyMedium,
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+
+                            items(uiState.relatedVideos) { relatedVideo ->
+                                VideoCard(
+                                    video = relatedVideo,
+                                    profile = uiState.creatorProfile,
+                                    onClick = { /* TODO: navigate to video */ },
                                 )
                             }
                         }
-                    }
 
-                    // Related videos header
-                    if (uiState.relatedVideos.isNotEmpty()) {
-                        item {
-                            Spacer(modifier = Modifier.height(24.dp))
-                            HorizontalDivider()
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "More from this creator",
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-
-                        items(uiState.relatedVideos) { relatedVideo ->
-                            VideoCard(
-                                video = relatedVideo,
-                                profile = uiState.creatorProfile,
-                                onClick = { /* TODO: navigate to video */ },
-                            )
-                        }
+                        item { Spacer(modifier = Modifier.height(32.dp)) }
                     }
                 }
             }
@@ -272,6 +391,33 @@ fun WatchScreen(
     }
 }
 
+private fun hideSystemBars(activity: Activity?) {
+    activity ?: return
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        activity.window.insetsController?.let { controller ->
+            controller.hide(android.view.WindowInsets.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    } else {
+        @Suppress("DEPRECATION")
+        activity.window.decorView.systemUiVisibility = (
+            android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+            android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+            android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+        )
+    }
+}
+
+private fun showSystemBars(activity: Activity?) {
+    activity ?: return
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        activity.window.insetsController?.show(android.view.WindowInsets.Type.systemBars())
+    } else {
+        @Suppress("DEPRECATION")
+        activity.window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_VISIBLE
+    }
+}
+
 @Composable
 private fun ActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -286,11 +432,13 @@ private fun ActionButton(
             imageVector = icon,
             contentDescription = label,
             modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
