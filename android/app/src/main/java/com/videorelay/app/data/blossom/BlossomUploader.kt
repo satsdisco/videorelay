@@ -46,7 +46,7 @@ class BlossomUploader @Inject constructor(
         val hash = sha256(file)
 
         val results = NostrConstants.BLOSSOM_SERVERS.map { server ->
-            async {
+            async(kotlinx.coroutines.Dispatchers.IO) {
                 try {
                     uploadToServer(file, mimeType, hash, server, signedAuthEvent)
                 } catch (e: Exception) {
