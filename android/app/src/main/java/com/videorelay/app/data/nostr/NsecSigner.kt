@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import fr.acinq.secp256k1.Secp256k1
+import fr.acinq.secp256k1.jni.NativeSecp256k1AndroidLoader
 import kotlinx.coroutines.flow.first
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -32,6 +33,16 @@ class NsecSigner @Inject constructor(
 
     private var _privateKey: ByteArray? = null
     private var _publicKey: String? = null
+    private var secp256k1: Secp256k1? = null
+
+    private fun getSecp256k1(): Secp256k1 {
+        return secp256k1 ?: try {
+            NativeSecp256k1AndroidLoader.load().also { secp256k1 = it }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load secp256k1 JNI: ${e.message}")
+            Secp256k1 // Fallback to companion (may fail without native lib)
+        }
+    }
 
     val publicKey: String? get() = _publicKey
 
@@ -67,8 +78,9 @@ class NsecSigner @Inject constructor(
             val privKeyBytes = hexToBytes(hexKey)
 
             // Derive x-only public key using secp256k1
-            val pubKeyBytes = Secp256k1.pubkeyCreate(privKeyBytes)
-            // x-only = drop the first byte (parity byte) and take next 32 bytes
+            val crypto = getSecp256k1()
+            val pubKeyBytes = crypto.pubkeyCreate(privKeyBytes)
+            // x-only pubkey = drop first byte (parity) and take 32 bytes
             val xOnlyPubKey = pubKeyBytes.drop(1).take(32).toByteArray().toHex()
 
             _privateKey = privKeyBytes
@@ -136,9 +148,10 @@ class NsecSigner @Inject constructor(
             val id = sha256Hex(serialized.toByteArray(Charsets.UTF_8))
             val idBytes = hexToBytes(id)
 
-            // BIP-340 Schnorr signature
+            // BIP-340 Schnorr signature using Android JNI
             val aux = ByteArray(32).also { SecureRandom().nextBytes(it) }
-            val sigBytes = Secp256k1.signSchnorr(idBytes, privKey, aux)
+            val crypto = getSecp256k1()
+            val sigBytes = crypto.signSchnorr(idBytes, privKey, aux)
             val sig = sigBytes.toHex()
 
             NostrEvent(
