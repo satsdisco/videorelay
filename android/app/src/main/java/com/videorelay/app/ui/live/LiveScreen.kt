@@ -26,7 +26,7 @@ import com.videorelay.app.ui.components.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LiveScreen(
-    onStreamClick: (String) -> Unit,
+    onStreamClick: (url: String, title: String) -> Unit,
     viewModel: LiveViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -58,7 +58,7 @@ fun LiveScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onStreamClick(stream.id) },
+                                .clickable { onStreamClick(stream.streamUrl, stream.title) },
                             shape = RoundedCornerShape(12.dp),
                         ) {
                             Column {

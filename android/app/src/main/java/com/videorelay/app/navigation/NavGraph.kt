@@ -18,6 +18,7 @@ import com.videorelay.app.ui.home.HomeScreen
 import com.videorelay.app.ui.watch.WatchScreen
 import com.videorelay.app.ui.shorts.ShortsScreen
 import com.videorelay.app.ui.live.LiveScreen
+import com.videorelay.app.ui.live.LivePlayerScreen
 import com.videorelay.app.ui.upload.UploadScreen
 import com.videorelay.app.ui.channel.ChannelScreen
 import com.videorelay.app.ui.search.SearchScreen
@@ -40,6 +41,13 @@ sealed class Screen(val route: String) {
         fun createRoute(query: String = "") = "search?query=$query"
     }
     object Settings : Screen("settings")
+    object LivePlayer : Screen("live-player?url={url}&title={title}") {
+        fun createRoute(url: String, title: String): String {
+            val encodedUrl = java.net.URLEncoder.encode(url, "UTF-8")
+            val encodedTitle = java.net.URLEncoder.encode(title, "UTF-8")
+            return "live-player?url=$encodedUrl&title=$encodedTitle"
+        }
+    }
 }
 
 data class BottomNavItem(
@@ -141,7 +149,26 @@ fun VideoRelayNavHost() {
 
             composable(Screen.Live.route) {
                 LiveScreen(
-                    onStreamClick = { /* TODO: live player */ },
+                    onStreamClick = { streamUrl, title ->
+                        navController.navigate(Screen.LivePlayer.createRoute(streamUrl, title))
+                    },
+                )
+            }
+
+            // Live player — opened from LiveScreen with stream URL
+            composable(
+                route = "live-player?url={url}&title={title}",
+                arguments = listOf(
+                    navArgument("url") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("title") { type = NavType.StringType; defaultValue = "Live" },
+                ),
+            ) { backStackEntry ->
+                val url = backStackEntry.arguments?.getString("url") ?: return@composable
+                val title = backStackEntry.arguments?.getString("title") ?: "Live"
+                LivePlayerScreen(
+                    streamUrl = url,
+                    title = title,
+                    onBack = { navController.popBackStack() },
                 )
             }
 
