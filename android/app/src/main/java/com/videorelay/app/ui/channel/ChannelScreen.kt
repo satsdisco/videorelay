@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -106,6 +107,43 @@ fun ChannelScreen(
                                     maxLines = 4,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Follow / Unfollow button
+                            if (uiState.isFollowing) {
+                                OutlinedButton(
+                                    onClick = { viewModel.toggleFollow() },
+                                    shape = RoundedCornerShape(24.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.primary,
+                                    ),
+                                ) {
+                                    Icon(
+                                        Icons.Filled.PersonRemove,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Following")
+                                }
+                            } else {
+                                Button(
+                                    onClick = { viewModel.toggleFollow() },
+                                    shape = RoundedCornerShape(24.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                    ),
+                                ) {
+                                    Icon(
+                                        Icons.Filled.PersonAdd,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Follow")
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
