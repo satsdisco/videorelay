@@ -151,7 +151,77 @@ fun UploadScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 supportingText = { Text("Comma-separated tags for discovery") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                ),
             )
+
+            // Short toggle
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Mark as Short",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            "Short-form content (under 60s). Appears in the Shorts feed.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = uiState.isShort,
+                        onCheckedChange = { viewModel.setIsShort(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        ),
+                    )
+                }
+            }
+
+            // Login warning if not signed in with nsec
+            if (!uiState.isLoggedIn) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f),
+                    ),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Icon(
+                            Icons.Filled.Warning,
+                            null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.tertiary,
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Sign in with nsec (Settings) to auto-publish to Nostr. Blossom upload still works without it.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
+                }
+            }
 
             // Upload info
             Card(

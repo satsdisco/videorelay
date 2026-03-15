@@ -3,6 +3,7 @@ package com.videorelay.app.ui.upload
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.videorelay.app.data.blossom.BlossomUploader
@@ -26,12 +27,14 @@ data class UploadUiState(
     val title: String = "",
     val summary: String = "",
     val tags: String = "",
+    val isShort: Boolean = false,
     val isUploading: Boolean = false,
     val uploadProgress: String = "",
     val isPublishing: Boolean = false,
     val error: String? = null,
     val success: Boolean = false,
     val videoUrl: String = "",
+    val isLoggedIn: Boolean = false,
 )
 
 @HiltViewModel
@@ -40,10 +43,18 @@ class UploadViewModel @Inject constructor(
     private val blossomUploader: BlossomUploader,
     private val relayPool: RelayPool,
     private val relayRepository: RelayRepository,
+    private val nsecSigner: NsecSigner,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UploadUiState())
     val uiState: StateFlow<UploadUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val loggedIn = nsecSigner.isLoggedIn()
+            _uiState.value = _uiState.value.copy(isLoggedIn = loggedIn)
+        }
+    }
 
     fun selectVideo(uri: Uri) {
         val cursor = context.contentResolver.query(uri, null, null, null, null)
@@ -58,7 +69,6 @@ class UploadViewModel @Inject constructor(
             }
         }
 
-        // Validate size
         val maxSize = 500L * 1024 * 1024
         if (size > maxSize) {
             _uiState.value = _uiState.value.copy(
@@ -67,25 +77,24 @@ class UploadViewModel @Inject constructor(
             return
         }
 
+        // Auto-detect if it should be marked as short based on filename
+        val isShortGuess = name.contains("short", ignoreCase = true) ||
+            name.contains("reel", ignoreCase = true) ||
+            name.contains("clip", ignoreCase = true)
+
         _uiState.value = _uiState.value.copy(
             selectedUri = uri,
             fileName = name,
             fileSize = size,
+            isShort = isShortGuess,
             error = null,
         )
     }
 
-    fun updateTitle(title: String) {
-        _uiState.value = _uiState.value.copy(title = title)
-    }
-
-    fun updateSummary(summary: String) {
-        _uiState.value = _uiState.value.copy(summary = summary)
-    }
-
-    fun updateTags(tags: String) {
-        _uiState.value = _uiState.value.copy(tags = tags)
-    }
+    fun updateTitle(title: String) { _uiState.value = _uiState.value.copy(title = title) }
+    fun updateSummary(summary: String) { _uiState.value = _uiState.value.copy(summary = summary) }
+    fun updateTags(tags: String) { _uiState.value = _uiState.value.copy(tags = tags) }
+    fun setIsShort(isShort: Boolean) { _uiState.value = _uiState.value.copy(isShort = isShort) }
 
     fun upload() {
         val state = _uiState.value
@@ -104,57 +113,109 @@ class UploadViewModel @Inject constructor(
                 val tempFile = withContext(Dispatchers.IO) {
                     val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}.mp4")
                     context.contentResolver.openInputStream(uri)?.use { input ->
-                        file.outputStream().use { output ->
-                            input.copyTo(output)
-                        }
+                        file.outputStream().use { output -> input.copyTo(output) }
                     }
                     file
                 }
 
+                _uiState.value = _uiState.value.copy(uploadProgress = "Signing upload authorization...")
+
+                // Build and sign a Blossom auth event (kind 24242) using local nsec signer
+                val authEvent: NostrEvent? = if (nsecSigner.isLoggedIn()) {
+                    val fileHash = withContext(Dispatchers.IO) { blossomUploader.sha256File(tempFile) }
+                    val unsignedAuth = blossomUploader.buildAuthEvent(fileHash)
+                    nsecSigner.signEvent(unsignedAuth)
+                } else {
+                    Log.w("UploadVM", "Not logged in — uploading without auth (may fail on some servers)")
+                    null
+                }
+
                 _uiState.value = _uiState.value.copy(uploadProgress = "Uploading to Blossom servers...")
 
-                // Upload to Blossom (without auth for now — auth requires signer integration)
                 val (videoUrl, results) = blossomUploader.upload(
                     file = tempFile,
                     mimeType = "video/mp4",
+                    signedAuthEvent = authEvent,
                 )
 
                 val successCount = results.count { it.success }
+                if (successCount == 0) {
+                    val errors = results.joinToString(", ") { "${it.server}: ${it.error}" }
+                    _uiState.value = _uiState.value.copy(
+                        isUploading = false,
+                        error = "Upload failed on all servers. Try again or check your connection.\n$errors",
+                    )
+                    tempFile.delete()
+                    return@launch
+                }
+
                 _uiState.value = _uiState.value.copy(
-                    uploadProgress = "Uploaded to $successCount/${results.size} servers. Publishing...",
+                    uploadProgress = "Uploaded to $successCount/${results.size} servers. Publishing to Nostr...",
                     isPublishing = true,
                     videoUrl = videoUrl,
                 )
 
-                // Build NIP-71 event
+                // Build NIP-71 event tags
                 val tagsList = state.tags.split(",", " ")
-                    .map { it.trim().removePrefix("#") }
+                    .map { it.trim().removePrefix("#").lowercase() }
                     .filter { it.isNotBlank() }
 
                 val eventTags = mutableListOf(
                     listOf("url", videoUrl),
                     listOf("title", state.title),
                 )
-                if (state.summary.isNotBlank()) {
-                    eventTags.add(listOf("summary", state.summary))
-                }
-                tagsList.forEach { tag ->
-                    eventTags.add(listOf("t", tag.lowercase()))
+                if (state.summary.isNotBlank()) eventTags.add(listOf("summary", state.summary))
+                tagsList.forEach { tag -> eventTags.add(listOf("t", tag)) }
+
+                // If marked as short, add the "shorts" tag
+                if (state.isShort && !tagsList.contains("short") && !tagsList.contains("shorts")) {
+                    eventTags.add(listOf("t", "short"))
                 }
 
-                // TODO: Sign with Amber and publish
-                // For now, just mark success with the URL
-                _uiState.value = _uiState.value.copy(
-                    isUploading = false,
-                    isPublishing = false,
-                    success = true,
-                    uploadProgress = "Video uploaded! Sign and publish with Amber to complete.",
+                // Determine kind: 22 for shorts, 21 for regular video
+                val videoKind = if (state.isShort) 22 else 21
+
+                val unsignedEvent = UnsignedEvent(
+                    kind = videoKind,
+                    content = state.summary,
+                    tags = eventTags,
                 )
 
-                // Cleanup
+                // Sign with local nsec signer
+                val signedEvent = nsecSigner.signEvent(unsignedEvent)
+
+                if (signedEvent != null) {
+                    val relays = relayRepository.getActiveRelays()
+                    try {
+                        relayPool.publish(relays, signedEvent)
+                        _uiState.value = _uiState.value.copy(
+                            isUploading = false,
+                            isPublishing = false,
+                            success = true,
+                            uploadProgress = "Published! Your video is live on Nostr.",
+                        )
+                    } catch (e: Exception) {
+                        _uiState.value = _uiState.value.copy(
+                            isUploading = false,
+                            isPublishing = false,
+                            success = true, // Uploaded to Blossom at least
+                            uploadProgress = "Uploaded to Blossom. Relay publish failed: ${e.message}",
+                        )
+                    }
+                } else {
+                    // No signer (not logged in with nsec) — show URL for manual publish
+                    _uiState.value = _uiState.value.copy(
+                        isUploading = false,
+                        isPublishing = false,
+                        success = true,
+                        uploadProgress = "Uploaded! Video URL: $videoUrl\n\nSign in with nsec to auto-publish.",
+                    )
+                }
+
                 tempFile.delete()
 
             } catch (e: Exception) {
+                Log.e("UploadVM", "Upload failed", e)
                 _uiState.value = _uiState.value.copy(
                     isUploading = false,
                     isPublishing = false,
@@ -165,6 +226,6 @@ class UploadViewModel @Inject constructor(
     }
 
     fun reset() {
-        _uiState.value = UploadUiState()
+        _uiState.value = UploadUiState(isLoggedIn = _uiState.value.isLoggedIn)
     }
 }

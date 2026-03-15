@@ -85,6 +85,8 @@ class BlossomUploader @Inject constructor(
         }
     }
 
+    fun sha256File(file: File): String = sha256(file)
+
     private fun sha256(file: File): String {
         val digest = MessageDigest.getInstance("SHA-256")
         file.inputStream().use { input ->
