@@ -122,11 +122,19 @@ class UploadViewModel @Inject constructor(
 
                 // Build and sign a Blossom auth event (kind 24242) using local nsec signer
                 val authEvent: NostrEvent? = if (nsecSigner.isLoggedIn()) {
-                    val fileHash = withContext(Dispatchers.IO) { blossomUploader.sha256File(tempFile) }
-                    val unsignedAuth = blossomUploader.buildAuthEvent(fileHash)
-                    nsecSigner.signEvent(unsignedAuth)
+                    try {
+                        val fileHash = withContext(Dispatchers.IO) { blossomUploader.sha256File(tempFile) }
+                        Log.d("UploadVM", "File hash: $fileHash, pubkey: ${nsecSigner.publicKey}")
+                        val unsignedAuth = blossomUploader.buildAuthEvent(fileHash)
+                        val signed = nsecSigner.signEvent(unsignedAuth)
+                        Log.d("UploadVM", "Auth event signed: ${signed != null}, id=${signed?.id}, sig_len=${signed?.sig?.length}")
+                        signed
+                    } catch (e: Exception) {
+                        Log.e("UploadVM", "Auth signing failed: ${e.message}", e)
+                        null
+                    }
                 } else {
-                    Log.w("UploadVM", "Not logged in — uploading without auth (may fail on some servers)")
+                    Log.w("UploadVM", "Not logged in — uploading without auth")
                     null
                 }
 
@@ -140,10 +148,11 @@ class UploadViewModel @Inject constructor(
 
                 val successCount = results.count { it.success }
                 if (successCount == 0) {
-                    val errors = results.joinToString(", ") { "${it.server}: ${it.error}" }
+                    val errors = results.joinToString("\n") { "• ${it.server.removePrefix("https://")}: ${it.error}" }
+                    Log.e("UploadVM", "All uploads failed:\n$errors")
                     _uiState.value = _uiState.value.copy(
                         isUploading = false,
-                        error = "Upload failed on all servers. Try again or check your connection.\n$errors",
+                        error = "Upload failed:\n$errors",
                     )
                     tempFile.delete()
                     return@launch
