@@ -230,7 +230,11 @@ class HomeViewModel @Inject constructor(
      * Following: videos from followed creators, newest first.
      */
     private suspend fun loadFollowingFeed(state: HomeUiState) {
-        val follows = followRepository.getFollowedPubkeys()
+        // Try fetching from relays first (fresh data), fall back to cache
+        var follows = try { followRepository.fetchFromRelays() } catch (_: Exception) { emptyList() }
+        if (follows.isEmpty()) {
+            follows = followRepository.getFollowedPubkeys()
+        }
         if (follows.isEmpty()) {
             _uiState.value = _uiState.value.copy(
                 isLoading = false,

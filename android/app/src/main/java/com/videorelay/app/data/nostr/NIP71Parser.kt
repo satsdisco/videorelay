@@ -92,21 +92,55 @@ object NIP71Parser {
     private fun extractFromImeta(event: NostrEvent, isVideo: Boolean): String? {
         val imetaTags = event.tags.filter { it.firstOrNull() == "imeta" }
         for (imeta in imetaTags) {
+            // imeta can be ["imeta", "url https://...", "m video/mp4"] or ["imeta", "url", "https://..."]
+            // Handle both formats
+            var urlValue: String? = null
+            var mimeValue: String? = null
+
             for (field in imeta.drop(1)) {
-                if (field.startsWith("url ")) {
-                    val url = field.removePrefix("url ")
-                    if (isVideo) {
-                        if (url.matches(Regex(""".*\.(mp4|webm|mov|m3u8|ogg)(\?.*)?$""", RegexOption.IGNORE_CASE)) ||
-                            url.contains("video")
-                        ) return url
-                    } else {
-                        if (url.matches(Regex(""".*\.(jpg|jpeg|png|webp|gif)(\?.*)?$""", RegexOption.IGNORE_CASE))) {
-                            return url
-                        }
+                when {
+                    field.startsWith("url ") -> urlValue = field.removePrefix("url ").trim()
+                    field == "url" -> {} // next element is the URL — handled below
+                    field.startsWith("m ") -> mimeValue = field.removePrefix("m ").trim()
+                    field.startsWith("image ") -> {
+                        // Some events use "image https://..." directly in imeta
+                        if (!isVideo) return field.removePrefix("image ").trim()
                     }
                 }
             }
+
+            // Handle ["imeta", "url", "https://..."] format (separate elements)
+            if (urlValue == null) {
+                val urlIdx = imeta.indexOf("url")
+                if (urlIdx >= 0 && urlIdx + 1 < imeta.size) {
+                    urlValue = imeta[urlIdx + 1].trim()
+                }
+            }
+
+            if (urlValue.isNullOrBlank()) continue
+
+            if (isVideo) {
+                val isVideoUrl = urlValue.matches(Regex(""".*\.(mp4|webm|mov|m3u8|ogg)(\?.*)?$""", RegexOption.IGNORE_CASE))
+                    || mimeValue?.startsWith("video/") == true
+                    || urlValue.contains("video")
+                if (isVideoUrl) return urlValue
+            } else {
+                val isImageUrl = urlValue.matches(Regex(""".*\.(jpg|jpeg|png|webp|gif)(\?.*)?$""", RegexOption.IGNORE_CASE))
+                    || mimeValue?.startsWith("image/") == true
+                if (isImageUrl) return urlValue
+                // Also accept any URL from image-typed imeta entries
+                if (mimeValue == null && !urlValue.matches(Regex(""".*\.(mp4|webm|mov|m3u8|ogg)(\?.*)?$""", RegexOption.IGNORE_CASE))) {
+                    // Could be an image without extension — return it
+                    return urlValue
+                }
+            }
         }
+
+        // Also check "image" tag directly (some kind 21/22 events use this)
+        if (!isVideo) {
+            event.getTag("image")?.let { return it }
+        }
+
         return null
     }
 

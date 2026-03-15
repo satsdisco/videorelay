@@ -31,9 +31,12 @@ class VideoRepository @Inject constructor(
         val relays = relayRepository.getActiveRelays()
         if (relays.isEmpty()) return emptyList()
 
+        // Empty authors list means "no one to filter by" → return empty
+        if (authors != null && authors.isEmpty()) return emptyList()
+
         val filter = NostrFilter(
             kinds = NostrConstants.ALL_VIDEO_KINDS,
-            authors = authors,
+            authors = authors?.takeIf { it.isNotEmpty() },
             limit = limit,
             since = since,
             until = until,

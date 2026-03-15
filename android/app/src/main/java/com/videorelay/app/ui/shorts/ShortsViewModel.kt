@@ -118,9 +118,12 @@ class ShortsViewModel @Inject constructor(
      * - Falls back to short-ish videos (< 3 min) if not enough true shorts
      */
     private suspend fun fetchAndDedupe(): List<Video> {
+        // Vary the query to get different content each time
+        val now = System.currentTimeMillis() / 1000
+        val randomOffset = (0..7).random() * 86400L // random day offset up to a week
         val allVideos = videoRepository.fetchVideos(
             limit = 200,
-            until = lastTimestamp,
+            until = lastTimestamp ?: (now - randomOffset),
         )
 
         // Primary: videos marked as shorts
