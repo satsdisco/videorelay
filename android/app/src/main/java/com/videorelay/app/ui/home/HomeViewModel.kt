@@ -3,6 +3,7 @@ package com.videorelay.app.ui.home
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.videorelay.app.data.nostr.NsecSigner
 import com.videorelay.app.data.nostr.SortMode
 import com.videorelay.app.data.nostr.VideoDiscovery
 import com.videorelay.app.data.repository.CuratedRepository
@@ -46,6 +47,7 @@ class HomeViewModel @Inject constructor(
     private val followRepository: FollowRepository,
     private val curatedRepository: CuratedRepository,
     private val videoDiscovery: VideoDiscovery,
+    private val nsecSigner: NsecSigner,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -273,17 +275,25 @@ class HomeViewModel @Inject constructor(
 
     /**
      * Following: videos from followed creators, newest first.
+     * Fetches your kind 3 contact list from relays to get the actual follow list.
      */
     private suspend fun loadFollowingFeed(state: HomeUiState) {
-        // Try fetching from relays first (fresh data), fall back to cache
-        var follows = try { followRepository.fetchFromRelays() } catch (_: Exception) { emptyList() }
-        if (follows.isEmpty()) {
-            follows = followRepository.getFollowedPubkeys()
+        // getFollowedPubkeys() now auto-fetches from relay if cache empty
+        val follows = try {
+            followRepository.getFollowedPubkeys()
+        } catch (e: Exception) {
+            Log.w("HomeViewModel", "Follow list fetch failed: ${e.message}")
+            emptyList()
         }
+
         if (follows.isEmpty()) {
+            val isLoggedIn = nsecSigner.isLoggedIn()
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
-                error = "Follow some creators to see their videos here",
+                error = if (isLoggedIn)
+                    "Your follow list is empty or couldn't be loaded. Try following some creators from their channel pages."
+                else
+                    "Sign in to see videos from creators you follow.",
             )
             return
         }

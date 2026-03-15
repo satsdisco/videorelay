@@ -28,9 +28,13 @@ class FollowRepository @Inject constructor(
     private var cachedFollows: MutableSet<String> = mutableSetOf()
     private var loaded = false
 
-    /** Get the list of followed pubkeys */
+    /** Get the list of followed pubkeys — loads from relay if cache is empty */
     suspend fun getFollowedPubkeys(): List<String> {
         if (!loaded) load()
+        // If local cache empty, try fetching from relay
+        if (cachedFollows.isEmpty()) {
+            return fetchFromRelays()
+        }
         return cachedFollows.toList()
     }
 
@@ -56,8 +60,19 @@ class FollowRepository @Inject constructor(
 
     /** Fetch follow list from relays for logged-in user */
     suspend fun fetchFromRelays(): List<String> {
+        // Ensure credentials are loaded (handles Amber sign-in across app restarts)
+        if (!nsecSigner.isLoggedIn()) return emptyList()
         val myPubkey = nsecSigner.publicKey ?: return emptyList()
-        val relays = relayRepository.getActiveRelays()
+
+        android.util.Log.d("FollowRepository", "Fetching follow list for $myPubkey")
+
+        // Use fast aggregator relays that index kind 3 well
+        val fastRelays = listOf(
+            "wss://relay.nostr.band",
+            "wss://relay.primal.net",
+            "wss://purplepag.es",
+            "wss://relay.damus.io",
+        )
 
         val filter = NostrFilter(
             kinds = listOf(NostrConstants.FOLLOW_LIST_KIND),
@@ -65,10 +80,17 @@ class FollowRepository @Inject constructor(
             limit = 1,
         )
 
-        val events = relayPool.query(relays, filter, timeoutMs = 5000)
-        val latestEvent = events.maxByOrNull { it.created_at } ?: return emptyList()
+        val events = relayPool.query(fastRelays, filter, timeoutMs = 8000)
+        android.util.Log.d("FollowRepository", "Got ${events.size} contact list events")
+
+        val latestEvent = events.maxByOrNull { it.created_at } ?: run {
+            android.util.Log.w("FollowRepository", "No contact list found for $myPubkey")
+            return cachedFollows.toList()
+        }
 
         val follows = latestEvent.getAllTags("p")
+        android.util.Log.d("FollowRepository", "Found ${follows.size} followed pubkeys")
+
         cachedFollows = follows.toMutableSet()
         loaded = true
         persist()
