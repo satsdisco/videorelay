@@ -47,7 +47,12 @@ class BlossomUploader @Inject constructor(
 
         val results = NostrConstants.BLOSSOM_SERVERS.map { server ->
             async {
-                uploadToServer(file, mimeType, hash, server, signedAuthEvent)
+                try {
+                    uploadToServer(file, mimeType, hash, server, signedAuthEvent)
+                } catch (e: Exception) {
+                    android.util.Log.e("BlossomUploader", "Async error for $server", e)
+                    BlossomResult(server, "", false, "${e.javaClass.simpleName}: ${e.message}")
+                }
             }
         }.awaitAll()
 
@@ -94,7 +99,9 @@ class BlossomUploader @Inject constructor(
                 BlossomResult(server, "", false, "HTTP ${response.code}: $errorBody")
             }
         } catch (e: Exception) {
-            BlossomResult(server, "", false, e.message)
+            val msg = "${e.javaClass.simpleName}: ${e.message ?: "no message"}"
+            android.util.Log.e("BlossomUploader", "Upload to $server failed", e)
+            BlossomResult(server, "", false, msg)
         }
     }
 

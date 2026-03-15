@@ -138,11 +138,16 @@ class UploadViewModel @Inject constructor(
                     null
                 }
 
+                Log.d("UploadVM", "Temp file: ${tempFile.absolutePath}, size=${tempFile.length()}, exists=${tempFile.exists()}")
                 _uiState.value = _uiState.value.copy(uploadProgress = "Uploading to Blossom servers...")
+
+                // Detect actual MIME type from URI
+                val mimeType = context.contentResolver.getType(uri) ?: "video/mp4"
+                Log.d("UploadVM", "Uploading with mimeType=$mimeType")
 
                 val (videoUrl, results) = blossomUploader.upload(
                     file = tempFile,
-                    mimeType = "video/mp4",
+                    mimeType = mimeType,
                     signedAuthEvent = authEvent,
                 )
 
