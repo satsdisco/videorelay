@@ -42,7 +42,7 @@ class BlossomUploader @Inject constructor(
         file: File,
         mimeType: String,
         signedAuthEvent: NostrEvent? = null,
-    ): Pair<String, List<BlossomResult>> = coroutineScope {
+    ): Pair<String?, List<BlossomResult>> = coroutineScope {
         val hash = sha256(file)
 
         val results = NostrConstants.BLOSSOM_SERVERS.map { server ->
@@ -52,9 +52,13 @@ class BlossomUploader @Inject constructor(
         }.awaitAll()
 
         val firstSuccess = results.firstOrNull { it.success }
-            ?: throw Exception("Upload failed on all servers")
 
-        firstSuccess.url to results
+        // Log all results for debugging
+        results.forEach { r ->
+            android.util.Log.d("BlossomUploader", "${r.server}: success=${r.success}, error=${r.error}")
+        }
+
+        firstSuccess?.url to results
     }
 
     private fun uploadToServer(

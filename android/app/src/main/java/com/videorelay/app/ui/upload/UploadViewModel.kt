@@ -147,12 +147,16 @@ class UploadViewModel @Inject constructor(
                 )
 
                 val successCount = results.count { it.success }
-                if (successCount == 0) {
-                    val errors = results.joinToString("\n") { "• ${it.server.removePrefix("https://")}: ${it.error}" }
-                    Log.e("UploadVM", "All uploads failed:\n$errors")
+                Log.d("UploadVM", "Upload results: $successCount/${results.size} succeeded")
+                results.forEach { Log.d("UploadVM", "  ${it.server}: success=${it.success}, error=${it.error}") }
+
+                if (successCount == 0 || videoUrl == null) {
+                    val errors = results.joinToString("\n") { r ->
+                        "• ${r.server.removePrefix("https://").substringBefore("/")}:\n  ${r.error}"
+                    }
                     _uiState.value = _uiState.value.copy(
                         isUploading = false,
-                        error = "Upload failed:\n$errors",
+                        error = "Upload failed on all servers:\n$errors",
                     )
                     tempFile.delete()
                     return@launch
