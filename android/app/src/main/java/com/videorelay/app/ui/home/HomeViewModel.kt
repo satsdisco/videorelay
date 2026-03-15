@@ -219,34 +219,42 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Most Zapped: multi-strategy fetch (limit 500) then sort by actual sats received.
-     * Mirrors web app's discoverPopularVideos(sortBy=zaps, limit=500).
+     * Most Zapped: fetch zap receipts FIRST, then get the videos they reference.
+     * This guarantees only videos with actual zaps appear.
      */
     private suspend fun loadMostZappedFeed(state: HomeUiState) {
         _uiState.value = _uiState.value.copy(isLoading = true)
 
-        // Fetch more videos for zap mode (web uses limit=500)
-        val raw = videoDiscovery.fetchBroadVideoSet(
-            limit = 500,
-            timePeriodSeconds = state.timePeriod.seconds,
-        )
-        allVideos = raw.distinctBy { it.id }
-        val pubkeys = allVideos.map { it.pubkey }.distinct()
-        allProfiles = profileRepository.getProfiles(pubkeys)
-
-        // Show while zap data loads
-        _uiState.value = _uiState.value.copy(
-            videos = allVideos.sortedByDescending { it.publishedAt },
-            profiles = allProfiles,
-            isLoading = false,
-        )
-
-        // Sort by real zap data
         try {
-            val sorted = videoDiscovery.sortByEngagement(allVideos, SortMode.MostZapped, state.timePeriod.seconds)
-            _uiState.value = _uiState.value.copy(videos = sorted)
+            val zappedVideos = videoDiscovery.fetchMostZappedVideos(state.timePeriod.seconds)
+
+            if (zappedVideos.isEmpty()) {
+                // Fallback: broad fetch + engagement sort
+                val raw = videoDiscovery.fetchBroadVideoSet(300, state.timePeriod.seconds)
+                allVideos = raw.distinctBy { it.id }
+                val pubkeys = allVideos.map { it.pubkey }.distinct()
+                allProfiles = profileRepository.getProfiles(pubkeys)
+                _uiState.value = _uiState.value.copy(
+                    videos = allVideos,
+                    profiles = allProfiles,
+                    isLoading = false,
+                    error = "Couldn't find zapped videos — showing recent",
+                )
+                val sorted = videoDiscovery.sortByEngagement(allVideos, SortMode.MostZapped, state.timePeriod.seconds)
+                _uiState.value = _uiState.value.copy(videos = sorted, error = null)
+            } else {
+                allVideos = zappedVideos
+                val pubkeys = allVideos.map { it.pubkey }.distinct()
+                allProfiles = profileRepository.getProfiles(pubkeys)
+                _uiState.value = _uiState.value.copy(
+                    videos = allVideos,
+                    profiles = allProfiles,
+                    isLoading = false,
+                )
+            }
         } catch (e: Exception) {
-            Log.w("HomeViewModel", "Zap sort failed: ${e.message}")
+            Log.w("HomeViewModel", "Most zapped feed failed: ${e.message}")
+            _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
         }
     }
 

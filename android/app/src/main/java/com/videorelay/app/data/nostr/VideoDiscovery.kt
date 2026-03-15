@@ -64,6 +64,102 @@ class VideoDiscovery @Inject constructor(
     private var cacheTimestamp = 0L
 
     /**
+     * MOST ZAPPED approach: fetch zap receipts first, then get the videos they reference.
+     * This guarantees we only return videos that actually have zaps.
+     * Much better than fetching videos and hoping they have zaps.
+     */
+    suspend fun fetchMostZappedVideos(
+        timePeriodSeconds: Long = Long.MAX_VALUE,
+    ): List<Video> = coroutineScope {
+        val now = System.currentTimeMillis() / 1000
+        val since = if (timePeriodSeconds == Long.MAX_VALUE) null else now - timePeriodSeconds
+
+        Log.d(TAG, "Fetching zap receipts to find most-zapped videos...")
+
+        // Step 1: Fetch recent zap receipts (kind 9735) from aggregator relays
+        val zapRelays = listOf("wss://relay.nostr.band", "wss://relay.primal.net", "wss://nostr.wine")
+        val zapEvents = try {
+            relayPool.query(
+                zapRelays,
+                NostrFilter(
+                    kinds = listOf(NostrConstants.ZAP_RECEIPT_KIND),
+                    since = since,
+                    limit = 1000,
+                ),
+                timeoutMs = 8000,
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Zap receipt fetch failed: ${e.message}")
+            emptyList()
+        }
+
+        Log.d(TAG, "Got ${zapEvents.size} zap receipts")
+
+        if (zapEvents.isEmpty()) return@coroutineScope emptyList()
+
+        // Step 2: Extract video IDs from zap receipts + compute sats per video
+        data class ZapInfo(var sats: Long, var count: Int)
+        val videoZaps = mutableMapOf<String, ZapInfo>()
+
+        for (zap in zapEvents) {
+            val videoId = zap.getTag("e") ?: continue
+            var sats = 0L
+            try {
+                val desc = zap.getTag("description")
+                if (desc != null) {
+                    val descJson = kotlinx.serialization.json.Json.parseToJsonElement(desc)
+                        .jsonObject
+                    val amountTag = descJson["tags"]?.jsonArray?.firstOrNull {
+                        it.jsonArray.firstOrNull()?.jsonPrimitive?.content == "amount"
+                    }
+                    sats = amountTag?.jsonArray?.get(1)?.jsonPrimitive?.content?.toLong()?.div(1000) ?: 0L
+                }
+            } catch (_: Exception) {}
+
+            val info = videoZaps.getOrPut(videoId) { ZapInfo(0, 0) }
+            info.sats += sats
+            info.count++
+        }
+
+        // Step 3: Sort by sats (or zap count as fallback), take top 200
+        val topVideoIds = videoZaps.entries
+            .sortedByDescending { (_, info) -> info.sats * 1000 + info.count }
+            .take(200)
+            .map { it.key }
+
+        Log.d(TAG, "Top ${topVideoIds.size} video IDs found with zaps")
+
+        if (topVideoIds.isEmpty()) return@coroutineScope emptyList()
+
+        // Step 4: Fetch the actual video events by ID
+        val videoEvents = try {
+            relayPool.query(
+                DISCOVERY_RELAYS.take(4),
+                NostrFilter(
+                    ids = topVideoIds.take(100), // relay limit
+                    limit = 100,
+                ),
+                timeoutMs = 6000,
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Video fetch by ID failed: ${e.message}")
+            emptyList()
+        }
+
+        // Step 5: Parse, attach zap data, and sort
+        val videos = videoEvents.mapNotNull { NIP71Parser.parse(it) }
+            .distinctBy { it.id }
+            .map { video ->
+                val zapInfo = videoZaps[video.id]
+                if (zapInfo != null) video.copy(zapCount = zapInfo.sats.toInt()) else video
+            }
+            .sortedByDescending { it.zapCount }
+
+        Log.d(TAG, "Returning ${videos.size} most-zapped videos")
+        videos
+    }
+
+    /**
      * Fetch a broad set of videos using multiple strategies (mirrors web's discoverPopularVideos).
      * Uses time-windowed queries + tag-based queries + big unlimited query.
      */
