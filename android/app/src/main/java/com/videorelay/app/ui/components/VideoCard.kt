@@ -68,13 +68,11 @@ fun VideoCard(
                         )
                     },
                     error = {
-                        // Purple gradient fallback with play icon
-                        ThumbnailFallback(title = video.title)
+                        ThumbnailFallback(title = video.title, videoId = video.id)
                     },
                 )
             } else {
-                // No thumbnail URL — show gradient fallback
-                ThumbnailFallback(title = video.title)
+                ThumbnailFallback(title = video.title, videoId = video.id)
             }
 
             // Duration badge
@@ -160,27 +158,35 @@ fun VideoCard(
     }
 }
 
+// Gradient pairs matching web app's getFallbackThumb — deterministic by ID
+private val FALLBACK_GRADIENTS = listOf(
+    listOf(Color(0xFF6366F1), Color(0xFF8B5CF6)), // indigo → violet
+    listOf(Color(0xFFEC4899), Color(0xFFF43F5E)), // pink → rose
+    listOf(Color(0xFFF59E0B), Color(0xFFEF4444)), // amber → red
+    listOf(Color(0xFF10B981), Color(0xFF06B6D4)), // emerald → cyan
+    listOf(Color(0xFF3B82F6), Color(0xFF6366F1)), // blue → indigo
+    listOf(Color(0xFF8B5CF6), Color(0xFFEC4899)), // violet → pink
+    listOf(Color(0xFF14B8A6), Color(0xFF22D3EE)), // teal → cyan
+    listOf(Color(0xFFF97316), Color(0xFFEAB308)), // orange → yellow
+)
+
 @Composable
-private fun ThumbnailFallback(title: String) {
+private fun ThumbnailFallback(title: String, videoId: String = "") {
+    // Deterministic gradient based on ID (same as web app)
+    val index = if (videoId.isNotEmpty()) videoId[0].code % FALLBACK_GRADIENTS.size else 0
+    val (from, to) = FALLBACK_GRADIENTS[index].let { it[0] to it[1] }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        VRPurpleDim.copy(alpha = 0.6f),
-                        VRPurple.copy(alpha = 0.3f),
-                        MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-                ),
-            ),
+            .background(Brush.linearGradient(colors = listOf(from, to))),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             Icons.Filled.PlayArrow,
             contentDescription = title,
             modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+            tint = Color.White.copy(alpha = 0.4f),
         )
     }
 }

@@ -164,63 +164,65 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Trending: full engagement score (likes + dislikes + comments + reposts + zaps + time decay).
-     * Mirrors web app's discoverPopularVideos with sortBy=trending.
+     * Trending: multi-strategy fetch (time windows + tags + big query) then engagement sort.
+     * Mirrors web app's useTrendingVideos + discoverPopularVideos(sortBy=trending).
      */
     private suspend fun loadTrendingFeed(state: HomeUiState) {
-        val raw = videoRepository.fetchVideos(hashtag = state.selectedTag, limit = 300)
+        // Show loading state
+        _uiState.value = _uiState.value.copy(isLoading = true)
+
+        // Fetch broad set using multi-strategy (time windows + tags + big query)
+        val raw = videoDiscovery.fetchBroadVideoSet(
+            limit = 300,
+            timePeriodSeconds = state.timePeriod.seconds,
+        )
         allVideos = raw.distinctBy { it.id }
         val pubkeys = allVideos.map { it.pubkey }.distinct()
         allProfiles = profileRepository.getProfiles(pubkeys)
 
-        // Show sorted-by-recent while engagement loads
+        // Show recency-sorted while engagement loads
         _uiState.value = _uiState.value.copy(
             videos = allVideos.sortedByDescending { it.publishedAt },
             profiles = allProfiles,
             isLoading = false,
         )
 
-        // Fetch engagement scores + re-sort in background
+        // Re-sort by engagement in background
         try {
-            val sorted = videoDiscovery.sortByEngagement(
-                allVideos,
-                SortMode.Trending,
-                state.timePeriod.seconds,
-            )
+            val sorted = videoDiscovery.sortByEngagement(allVideos, SortMode.Trending, state.timePeriod.seconds)
             _uiState.value = _uiState.value.copy(videos = sorted)
         } catch (e: Exception) {
-            Log.w("HomeViewModel", "Engagement sort failed: ${e.message}")
+            Log.w("HomeViewModel", "Trending sort failed: ${e.message}")
         }
     }
 
     /**
-     * Most Zapped: sorted by total zap amount (sats), filtered to videos with actual zaps.
-     * Mirrors web app's discoverPopularVideos with sortBy=zaps.
+     * Most Zapped: multi-strategy fetch (limit 500) then sort by actual sats received.
+     * Mirrors web app's discoverPopularVideos(sortBy=zaps, limit=500).
      */
     private suspend fun loadMostZappedFeed(state: HomeUiState) {
-        val raw = videoRepository.fetchVideos(hashtag = state.selectedTag, limit = 300)
+        _uiState.value = _uiState.value.copy(isLoading = true)
+
+        // Fetch more videos for zap mode (web uses limit=500)
+        val raw = videoDiscovery.fetchBroadVideoSet(
+            limit = 500,
+            timePeriodSeconds = state.timePeriod.seconds,
+        )
         allVideos = raw.distinctBy { it.id }
         val pubkeys = allVideos.map { it.pubkey }.distinct()
         allProfiles = profileRepository.getProfiles(pubkeys)
 
-        // Show something while we wait
+        // Show while zap data loads
         _uiState.value = _uiState.value.copy(
             videos = allVideos.sortedByDescending { it.publishedAt },
             profiles = allProfiles,
             isLoading = false,
         )
 
-        // Fetch real zap data + re-sort
+        // Sort by real zap data
         try {
-            val sorted = videoDiscovery.sortByEngagement(
-                allVideos,
-                SortMode.MostZapped,
-                state.timePeriod.seconds,
-            )
-            _uiState.value = _uiState.value.copy(
-                videos = sorted,
-                error = if (sorted.isEmpty()) "No zapped videos found for this time period" else null,
-            )
+            val sorted = videoDiscovery.sortByEngagement(allVideos, SortMode.MostZapped, state.timePeriod.seconds)
+            _uiState.value = _uiState.value.copy(videos = sorted)
         } catch (e: Exception) {
             Log.w("HomeViewModel", "Zap sort failed: ${e.message}")
         }
