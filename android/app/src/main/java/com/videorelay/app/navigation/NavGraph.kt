@@ -226,6 +226,9 @@ fun VideoRelayNavHost() {
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     onBack = { navController.popBackStack() },
+                    onProfileClick = { pubkey ->
+                        navController.navigate(Screen.Channel.createRoute(pubkey))
+                    },
                 )
             }
         }

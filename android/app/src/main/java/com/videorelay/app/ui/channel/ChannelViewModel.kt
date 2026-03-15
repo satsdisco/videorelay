@@ -2,6 +2,7 @@ package com.videorelay.app.ui.channel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.videorelay.app.data.nostr.NsecSigner
 import com.videorelay.app.data.repository.FollowRepository
 import com.videorelay.app.data.repository.ProfileRepository
 import com.videorelay.app.data.repository.VideoRepository
@@ -18,6 +19,7 @@ data class ChannelUiState(
     val profile: Profile? = null,
     val videos: List<Video> = emptyList(),
     val isFollowing: Boolean = false,
+    val isOwnChannel: Boolean = false,
     val isLoading: Boolean = true,
     val error: String? = null,
 )
@@ -27,6 +29,7 @@ class ChannelViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val videoRepository: VideoRepository,
     private val followRepository: FollowRepository,
+    private val nsecSigner: NsecSigner,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChannelUiState())
@@ -43,11 +46,13 @@ class ChannelViewModel @Inject constructor(
                 val videos = videoRepository.fetchVideos(authors = listOf(pubkey), limit = 50)
                     .sortedByDescending { it.publishedAt }
                 val isFollowing = followRepository.isFollowing(pubkey)
+                val isOwnChannel = nsecSigner.publicKey == pubkey
 
                 _uiState.value = ChannelUiState(
                     profile = profile,
                     videos = videos,
                     isFollowing = isFollowing,
+                    isOwnChannel = isOwnChannel,
                     isLoading = false,
                 )
             } catch (e: Exception) {

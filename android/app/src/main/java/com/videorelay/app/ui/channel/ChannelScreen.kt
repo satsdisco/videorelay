@@ -111,8 +111,20 @@ fun ChannelScreen(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Follow / Unfollow button
-                            if (uiState.isFollowing) {
+                            // Follow / Unfollow / My Channel button
+                            if (uiState.isOwnChannel) {
+                                OutlinedButton(
+                                    onClick = { /* TODO: edit profile */ },
+                                    shape = RoundedCornerShape(24.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.primary,
+                                    ),
+                                ) {
+                                    Icon(Icons.Filled.VideoLibrary, null, Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("My Channel")
+                                }
+                            } else if (uiState.isFollowing) {
                                 OutlinedButton(
                                     onClick = { viewModel.toggleFollow() },
                                     shape = RoundedCornerShape(24.dp),
@@ -120,11 +132,7 @@ fun ChannelScreen(
                                         contentColor = MaterialTheme.colorScheme.primary,
                                     ),
                                 ) {
-                                    Icon(
-                                        Icons.Filled.PersonRemove,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
+                                    Icon(Icons.Filled.PersonRemove, null, Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("Following")
                                 }
@@ -136,11 +144,7 @@ fun ChannelScreen(
                                         containerColor = MaterialTheme.colorScheme.primary,
                                     ),
                                 ) {
-                                    Icon(
-                                        Icons.Filled.PersonAdd,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
+                                    Icon(Icons.Filled.PersonAdd, null, Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("Follow")
                                 }
