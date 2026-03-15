@@ -2,7 +2,7 @@ package com.videorelay.app.ui.watch
 
 import android.app.Activity
 import android.content.Intent
-import android.content.pm.ActivityInfo
+
 import android.view.ViewGroup
 import android.view.WindowInsetsController
 import android.widget.FrameLayout
@@ -52,7 +52,6 @@ fun WatchScreen(
     // Handle back press in fullscreen
     BackHandler(enabled = isFullscreen) {
         isFullscreen = false
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         showSystemBars(activity)
     }
 
@@ -75,11 +74,10 @@ fun WatchScreen(
         viewModel.loadVideo(videoId)
     }
 
-    // Cleanup player + restore orientation
+    // Cleanup player + restore system bars
     DisposableEffect(Unit) {
         onDispose {
             player.release()
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             showSystemBars(activity)
         }
     }
@@ -110,7 +108,6 @@ fun WatchScreen(
             IconButton(
                 onClick = {
                     isFullscreen = false
-                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                     showSystemBars(activity)
                 },
                 modifier = Modifier
@@ -171,7 +168,7 @@ fun WatchScreen(
                     IconButton(
                         onClick = {
                             isFullscreen = true
-                            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            // Don't force orientation — fill screen in current mode
                             hideSystemBars(activity)
                         },
                     ) {
