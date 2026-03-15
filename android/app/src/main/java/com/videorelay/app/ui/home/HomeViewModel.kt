@@ -133,17 +133,16 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Home feed: show cached videos INSTANTLY, then refresh from relays in background.
-     * Curated creators get priority placement.
+     * Home feed: show cached videos INSTANTLY, then refresh.
+     * Curated creators fetched SEPARATELY and guaranteed to appear at top.
+     * Mirrors web app's Index.tsx home view logic.
      */
     private suspend fun loadHomeFeed(state: HomeUiState) {
-        // Step 1: Show cached videos immediately (no waiting)
+        // Step 1: Show cached videos immediately
         val cached = videoRepository.getCachedVideos(100)
         if (cached.isNotEmpty()) {
             allVideos = cached.sortedByDescending { it.publishedAt }
-            // Get cached profiles instantly (memory cache)
-            val cachedPubkeys = allVideos.map { it.pubkey }.distinct()
-            allProfiles = profileRepository.getProfiles(cachedPubkeys)
+            allProfiles = profileRepository.getProfiles(allVideos.map { it.pubkey }.distinct())
             _uiState.value = _uiState.value.copy(
                 videos = allVideos,
                 profiles = allProfiles,
@@ -151,37 +150,51 @@ class HomeViewModel @Inject constructor(
             )
         }
 
-        // Step 2: Fetch curated pubkeys
-        val curatedPubkeys = try { curatedRepository.getCuratedPubkeys() } catch (_: Exception) { emptyList() }
-
-        // Step 3: Fetch fresh from relays
         try {
-            val fresh = videoRepository.fetchVideos(hashtag = state.selectedTag)
-            val curated = fresh.filter { it.pubkey in curatedPubkeys }
-            val rest = fresh.filter { it.pubkey !in curatedPubkeys }
-            allVideos = (curated + rest).distinctBy { it.id }.sortedByDescending { it.publishedAt }
+            // Step 2: Fetch curated pubkeys (always from relay, not just cache)
+            val curatedPubkeys = try {
+                curatedRepository.fetchFromRelays()
+                    .ifEmpty { curatedRepository.getCuratedPubkeys() }
+            } catch (_: Exception) { curatedRepository.getCuratedPubkeys() }
 
-            // Show videos first, load profiles in background
+            // Step 3: Fetch curated creator videos DIRECTLY (guaranteed to appear)
+            val curatedVideos = if (curatedPubkeys.isNotEmpty()) {
+                try {
+                    videoRepository.fetchVideos(
+                        authors = curatedPubkeys,
+                        limit = 50,
+                    ).sortedByDescending { it.publishedAt }
+                } catch (_: Exception) { emptyList() }
+            } else emptyList()
+
+            // Step 4: Fetch general recent feed
+            val recentVideos = videoRepository.fetchVideos(
+                hashtag = state.selectedTag,
+                limit = 200,
+            )
+
+            // Step 5: Curated first, then recent (deduped)
+            val curatedSet = curatedVideos.map { it.id }.toSet()
+            val combined = (curatedVideos + recentVideos.filter { it.id !in curatedSet })
+                .distinctBy { it.id }
+            allVideos = combined
+
+            // Show immediately
             _uiState.value = _uiState.value.copy(
                 videos = allVideos,
                 isLoading = false,
                 hasMore = allVideos.size >= 50,
             )
 
-            // Step 4: Load profiles (now fast with memory cache + batch fetch)
-            val pubkeys = allVideos.map { it.pubkey }.distinct()
-            allProfiles = profileRepository.getProfiles(pubkeys)
+            // Step 6: Load profiles in background (non-blocking)
+            allProfiles = profileRepository.getProfiles(allVideos.map { it.pubkey }.distinct())
             _uiState.value = _uiState.value.copy(profiles = allProfiles)
+
         } catch (e: Exception) {
-            // Keep showing cached if fresh fetch fails
-            if (allVideos.isEmpty()) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "Couldn't load videos — check your relay connection",
-                )
-            } else {
-                _uiState.value = _uiState.value.copy(isLoading = false)
-            }
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                error = if (allVideos.isEmpty()) "Couldn't load videos — check relay connection" else null,
+            )
         }
     }
 
