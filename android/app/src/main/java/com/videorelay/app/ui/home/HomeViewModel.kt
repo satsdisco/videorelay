@@ -3,25 +3,28 @@ package com.videorelay.app.ui.home
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.videorelay.app.data.nostr.SortMode
+import com.videorelay.app.data.nostr.VideoDiscovery
+import com.videorelay.app.data.repository.CuratedRepository
 import com.videorelay.app.data.repository.FollowRepository
 import com.videorelay.app.data.repository.ProfileRepository
 import com.videorelay.app.data.repository.VideoRepository
 import com.videorelay.app.domain.model.Profile
 import com.videorelay.app.domain.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 enum class FeedTab { Home, Trending, MostZapped, Following }
 
 enum class TimePeriod(val label: String, val seconds: Long) {
-    Today("Today", 86_400),
-    Week("Week", 604_800),
-    Month("Month", 2_592_000),
-    All("All time", Long.MAX_VALUE),
+    Today("Today", 86_400L),
+    Week("This Week", 604_800L),
+    Month("This Month", 2_592_000L),
+    All("All Time", Long.MAX_VALUE),
 }
 
 data class HomeUiState(
@@ -41,15 +44,15 @@ class HomeViewModel @Inject constructor(
     private val videoRepository: VideoRepository,
     private val profileRepository: ProfileRepository,
     private val followRepository: FollowRepository,
+    private val curatedRepository: CuratedRepository,
+    private val videoDiscovery: VideoDiscovery,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    // Cache all fetched videos so tab switching is instant
     private var allVideos: List<Video> = emptyList()
     private var allProfiles: Map<String, Profile> = emptyMap()
-    private var zapCountsFetched = false
 
     init {
         loadVideos()
@@ -58,56 +61,7 @@ class HomeViewModel @Inject constructor(
     fun selectTab(tab: FeedTab) {
         if (tab == _uiState.value.selectedTab) return
         _uiState.value = _uiState.value.copy(selectedTab = tab, selectedTag = null)
-
-        if (tab == FeedTab.Following) {
-            loadFollowingFeed()
-        } else if (allVideos.isNotEmpty()) {
-            val sorted = applyFiltersAndSort(allVideos, tab, _uiState.value.timePeriod)
-            _uiState.value = _uiState.value.copy(videos = sorted, error = null)
-            if ((tab == FeedTab.MostZapped || tab == FeedTab.Trending) && !zapCountsFetched) {
-                fetchZapsAndResort(tab)
-            }
-        } else {
-            loadVideos()
-        }
-    }
-
-    fun selectTimePeriod(period: TimePeriod) {
-        _uiState.value = _uiState.value.copy(timePeriod = period)
-        val sorted = applyFiltersAndSort(allVideos, _uiState.value.selectedTab, period)
-        _uiState.value = _uiState.value.copy(videos = sorted)
-    }
-
-    private fun loadFollowingFeed() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null, videos = emptyList())
-            try {
-                val follows = followRepository.getFollowedPubkeys()
-                if (follows.isEmpty()) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = "Follow some creators to see their videos here",
-                    )
-                    return@launch
-                }
-                val videos = videoRepository.fetchVideos(authors = follows)
-                    .sortedByDescending { it.publishedAt }
-                val pubkeys = videos.map { it.pubkey }.distinct()
-                val profiles = profileRepository.getProfiles(pubkeys)
-                allVideos = videos
-                allProfiles = profiles
-                _uiState.value = _uiState.value.copy(
-                    videos = videos,
-                    profiles = profiles,
-                    isLoading = false,
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to load following feed",
-                )
-            }
-        }
+        loadVideos()
     }
 
     fun selectTag(tag: String?) {
@@ -115,15 +69,19 @@ class HomeViewModel @Inject constructor(
         loadVideos()
     }
 
+    fun selectTimePeriod(period: TimePeriod) {
+        if (period == _uiState.value.timePeriod) return
+        _uiState.value = _uiState.value.copy(timePeriod = period)
+        loadVideos()
+    }
+
     fun refresh() {
-        zapCountsFetched = false
         loadVideos()
     }
 
     fun loadMore() {
         val state = _uiState.value
-        if (state.isLoadingMore || !state.hasMore || state.videos.isEmpty()) return
-
+        if (state.isLoadingMore || !state.hasMore || allVideos.isEmpty()) return
         _uiState.value = state.copy(isLoadingMore = true)
 
         viewModelScope.launch {
@@ -136,15 +94,12 @@ class HomeViewModel @Inject constructor(
                 )
 
                 allVideos = (allVideos + moreVideos).distinctBy { it.id }
-                val sorted = applyFiltersAndSort(allVideos, state.selectedTab, state.timePeriod)
-
-                val newPubkeys = moreVideos.map { it.pubkey }.distinct()
-                    .filter { it !in allProfiles }
+                val newPubkeys = moreVideos.map { it.pubkey }.distinct().filter { it !in allProfiles }
                 val newProfiles = profileRepository.getProfiles(newPubkeys)
                 allProfiles = allProfiles + newProfiles
 
                 _uiState.value = state.copy(
-                    videos = sorted,
+                    videos = allVideos,
                     profiles = allProfiles,
                     isLoadingMore = false,
                     hasMore = moreVideos.size >= 10,
@@ -157,26 +112,18 @@ class HomeViewModel @Inject constructor(
 
     private fun loadVideos() {
         val state = _uiState.value
-        _uiState.value = state.copy(isLoading = true, error = null)
+        _uiState.value = state.copy(isLoading = true, error = null, videos = emptyList())
 
         viewModelScope.launch {
             try {
-                val videos = videoRepository.fetchVideos(hashtag = state.selectedTag)
-                allVideos = videos.distinctBy { it.id }
-                val sorted = applyFiltersAndSort(allVideos, state.selectedTab, state.timePeriod)
-                val pubkeys = sorted.map { it.pubkey }.distinct()
-                allProfiles = profileRepository.getProfiles(pubkeys)
-
-                _uiState.value = _uiState.value.copy(
-                    videos = sorted,
-                    profiles = allProfiles,
-                    isLoading = false,
-                    hasMore = sorted.size >= 50,
-                )
-
-                fetchZapsAndResort(state.selectedTab)
+                when (state.selectedTab) {
+                    FeedTab.Home -> loadHomeFeed(state)
+                    FeedTab.Trending -> loadTrendingFeed(state)
+                    FeedTab.MostZapped -> loadMostZappedFeed(state)
+                    FeedTab.Following -> loadFollowingFeed(state)
+                }
             } catch (e: Exception) {
-                Log.e("HomeViewModel", "Failed to load videos", e)
+                Log.e("HomeViewModel", "Load failed", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = e.message ?: "Failed to load videos",
@@ -185,40 +132,126 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun fetchZapsAndResort(tab: FeedTab) {
-        viewModelScope.launch {
-            try {
-                val zapCounts = videoRepository.fetchZapCounts(allVideos)
-                if (zapCounts.isNotEmpty()) {
-                    zapCountsFetched = true
-                    allVideos = allVideos.map { v ->
-                        zapCounts[v.id]?.let { v.copy(zapCount = it) } ?: v
-                    }
-                    val reSorted = applyFiltersAndSort(allVideos, _uiState.value.selectedTab, _uiState.value.timePeriod)
-                    _uiState.value = _uiState.value.copy(videos = reSorted)
-                }
-            } catch (e: Exception) {
-                Log.w("HomeViewModel", "Zap count fetch failed: ${e.message}")
-            }
+    /**
+     * Home feed: curated creators first (NIP-51 list), then recent from all relays.
+     * Mirrors web app's home view with curated priority.
+     */
+    private suspend fun loadHomeFeed(state: HomeUiState) {
+        // Fetch curated pubkeys in background
+        val curatedPubkeys = try { curatedRepository.getCuratedPubkeys() } catch (_: Exception) { emptyList() }
+
+        // Fetch recent videos (broad)
+        val recent = videoRepository.fetchVideos(hashtag = state.selectedTag)
+            .sortedByDescending { it.publishedAt }
+
+        // Boost curated creators to top
+        val curated = if (curatedPubkeys.isNotEmpty()) {
+            recent.filter { it.pubkey in curatedPubkeys }
+        } else emptyList()
+
+        val rest = recent.filter { it.pubkey !in curatedPubkeys }
+        allVideos = (curated + rest).distinctBy { it.id }
+
+        val pubkeys = allVideos.map { it.pubkey }.distinct()
+        allProfiles = profileRepository.getProfiles(pubkeys)
+
+        _uiState.value = _uiState.value.copy(
+            videos = allVideos,
+            profiles = allProfiles,
+            isLoading = false,
+            hasMore = allVideos.size >= 50,
+        )
+    }
+
+    /**
+     * Trending: full engagement score (likes + dislikes + comments + reposts + zaps + time decay).
+     * Mirrors web app's discoverPopularVideos with sortBy=trending.
+     */
+    private suspend fun loadTrendingFeed(state: HomeUiState) {
+        val raw = videoRepository.fetchVideos(hashtag = state.selectedTag, limit = 300)
+        allVideos = raw.distinctBy { it.id }
+        val pubkeys = allVideos.map { it.pubkey }.distinct()
+        allProfiles = profileRepository.getProfiles(pubkeys)
+
+        // Show sorted-by-recent while engagement loads
+        _uiState.value = _uiState.value.copy(
+            videos = allVideos.sortedByDescending { it.publishedAt },
+            profiles = allProfiles,
+            isLoading = false,
+        )
+
+        // Fetch engagement scores + re-sort in background
+        try {
+            val sorted = videoDiscovery.sortByEngagement(
+                allVideos,
+                SortMode.Trending,
+                state.timePeriod.seconds,
+            )
+            _uiState.value = _uiState.value.copy(videos = sorted)
+        } catch (e: Exception) {
+            Log.w("HomeViewModel", "Engagement sort failed: ${e.message}")
         }
     }
 
-    private fun applyFiltersAndSort(videos: List<Video>, tab: FeedTab, period: TimePeriod): List<Video> {
-        val now = System.currentTimeMillis() / 1000
-        val filtered = if (period == TimePeriod.All) videos
-        else videos.filter { it.publishedAt >= now - period.seconds }
+    /**
+     * Most Zapped: sorted by total zap amount (sats), filtered to videos with actual zaps.
+     * Mirrors web app's discoverPopularVideos with sortBy=zaps.
+     */
+    private suspend fun loadMostZappedFeed(state: HomeUiState) {
+        val raw = videoRepository.fetchVideos(hashtag = state.selectedTag, limit = 300)
+        allVideos = raw.distinctBy { it.id }
+        val pubkeys = allVideos.map { it.pubkey }.distinct()
+        allProfiles = profileRepository.getProfiles(pubkeys)
 
-        return when (tab) {
-            FeedTab.Home -> filtered.sortedByDescending { it.publishedAt }
-            FeedTab.Trending -> {
-                filtered.sortedByDescending { v ->
-                    val ageHours = ((now - v.publishedAt) / 3600.0).coerceAtLeast(1.0)
-                    (v.zapCount + 1).toDouble() / ageHours
-                }
-            }
-            FeedTab.MostZapped -> filtered.sortedByDescending { it.zapCount }
-            FeedTab.Following -> filtered.sortedByDescending { it.publishedAt }
+        // Show something while we wait
+        _uiState.value = _uiState.value.copy(
+            videos = allVideos.sortedByDescending { it.publishedAt },
+            profiles = allProfiles,
+            isLoading = false,
+        )
+
+        // Fetch real zap data + re-sort
+        try {
+            val sorted = videoDiscovery.sortByEngagement(
+                allVideos,
+                SortMode.MostZapped,
+                state.timePeriod.seconds,
+            )
+            _uiState.value = _uiState.value.copy(
+                videos = sorted,
+                error = if (sorted.isEmpty()) "No zapped videos found for this time period" else null,
+            )
+        } catch (e: Exception) {
+            Log.w("HomeViewModel", "Zap sort failed: ${e.message}")
         }
+    }
+
+    /**
+     * Following: videos from followed creators, newest first.
+     */
+    private suspend fun loadFollowingFeed(state: HomeUiState) {
+        val follows = followRepository.getFollowedPubkeys()
+        if (follows.isEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                error = "Follow some creators to see their videos here",
+            )
+            return
+        }
+
+        val videos = videoRepository.fetchVideos(authors = follows)
+            .sortedByDescending { it.publishedAt }
+
+        val pubkeys = videos.map { it.pubkey }.distinct()
+        val profiles = profileRepository.getProfiles(pubkeys)
+        allVideos = videos
+        allProfiles = profiles
+
+        _uiState.value = _uiState.value.copy(
+            videos = videos,
+            profiles = profiles,
+            isLoading = false,
+            error = if (videos.isEmpty()) "No videos from people you follow yet" else null,
+        )
     }
 }
-
