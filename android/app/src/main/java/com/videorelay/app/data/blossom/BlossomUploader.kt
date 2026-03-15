@@ -26,6 +26,14 @@ data class BlossomResult(
 class BlossomUploader @Inject constructor(
     private val okHttpClient: OkHttpClient,
 ) {
+    // Upload client with longer timeouts for video files
+    private val uploadClient by lazy {
+        okHttpClient.newBuilder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(5, java.util.concurrent.TimeUnit.MINUTES)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
     /**
      * Upload a video file to all Blossom servers.
      * Returns the first successful URL.
@@ -71,14 +79,15 @@ class BlossomUploader @Inject constructor(
                 requestBuilder.addHeader("Authorization", "Nostr $encoded")
             }
 
-            val response = okHttpClient.newCall(requestBuilder.build()).execute()
+            val response = uploadClient.newCall(requestBuilder.build()).execute()
             if (response.isSuccessful) {
                 val body = response.body?.string() ?: ""
                 val json = kotlinx.serialization.json.Json.parseToJsonElement(body)
                 val url = json.jsonObject["url"]?.jsonPrimitive?.content ?: "$server/$hash"
                 BlossomResult(server, url, true)
             } else {
-                BlossomResult(server, "", false, "HTTP ${response.code}")
+                val errorBody = try { response.body?.string()?.take(200) } catch (_: Exception) { null }
+                BlossomResult(server, "", false, "HTTP ${response.code}: $errorBody")
             }
         } catch (e: Exception) {
             BlossomResult(server, "", false, e.message)
