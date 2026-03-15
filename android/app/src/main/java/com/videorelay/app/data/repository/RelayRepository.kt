@@ -28,20 +28,23 @@ class RelayRepository @Inject constructor(
     private val key = stringPreferencesKey("relay_list")
     private val json = Json { ignoreUnknownKeys = true }
 
+    // In-memory cache — relays don't change often
+    private var cachedRelays: List<RelayEntry>? = null
+
     suspend fun getRelays(): List<RelayEntry> {
+        cachedRelays?.let { return it }
+
         val stored = context.relayDataStore.data
             .map { prefs -> prefs[key] }
             .first()
 
-        return if (stored != null) {
-            try {
-                json.decodeFromString<List<RelayEntry>>(stored)
-            } catch (e: Exception) {
-                defaultRelays()
-            }
+        val relays = if (stored != null) {
+            try { json.decodeFromString<List<RelayEntry>>(stored) } catch (_: Exception) { defaultRelays() }
         } else {
             defaultRelays()
         }
+        cachedRelays = relays
+        return relays
     }
 
     suspend fun getActiveRelays(): List<String> {
@@ -49,6 +52,7 @@ class RelayRepository @Inject constructor(
     }
 
     suspend fun saveRelays(relays: List<RelayEntry>) {
+        cachedRelays = relays  // Update memory cache
         context.relayDataStore.edit { prefs ->
             prefs[key] = json.encodeToString(kotlinx.serialization.builtins.ListSerializer(RelayEntry.serializer()), relays)
         }

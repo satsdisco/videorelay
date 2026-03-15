@@ -133,34 +133,56 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Home feed: curated creators first (NIP-51 list), then recent from all relays.
-     * Mirrors web app's home view with curated priority.
+     * Home feed: show cached videos INSTANTLY, then refresh from relays in background.
+     * Curated creators get priority placement.
      */
     private suspend fun loadHomeFeed(state: HomeUiState) {
-        // Fetch curated pubkeys in background
+        // Step 1: Show cached videos immediately (no waiting)
+        val cached = videoRepository.getCachedVideos(100)
+        if (cached.isNotEmpty()) {
+            allVideos = cached.sortedByDescending { it.publishedAt }
+            // Get cached profiles instantly (memory cache)
+            val cachedPubkeys = allVideos.map { it.pubkey }.distinct()
+            allProfiles = profileRepository.getProfiles(cachedPubkeys)
+            _uiState.value = _uiState.value.copy(
+                videos = allVideos,
+                profiles = allProfiles,
+                isLoading = false,
+            )
+        }
+
+        // Step 2: Fetch curated pubkeys
         val curatedPubkeys = try { curatedRepository.getCuratedPubkeys() } catch (_: Exception) { emptyList() }
 
-        // Fetch recent videos (broad)
-        val recent = videoRepository.fetchVideos(hashtag = state.selectedTag)
-            .sortedByDescending { it.publishedAt }
+        // Step 3: Fetch fresh from relays
+        try {
+            val fresh = videoRepository.fetchVideos(hashtag = state.selectedTag)
+            val curated = fresh.filter { it.pubkey in curatedPubkeys }
+            val rest = fresh.filter { it.pubkey !in curatedPubkeys }
+            allVideos = (curated + rest).distinctBy { it.id }.sortedByDescending { it.publishedAt }
 
-        // Boost curated creators to top
-        val curated = if (curatedPubkeys.isNotEmpty()) {
-            recent.filter { it.pubkey in curatedPubkeys }
-        } else emptyList()
+            // Show videos first, load profiles in background
+            _uiState.value = _uiState.value.copy(
+                videos = allVideos,
+                isLoading = false,
+                hasMore = allVideos.size >= 50,
+            )
 
-        val rest = recent.filter { it.pubkey !in curatedPubkeys }
-        allVideos = (curated + rest).distinctBy { it.id }
-
-        val pubkeys = allVideos.map { it.pubkey }.distinct()
-        allProfiles = profileRepository.getProfiles(pubkeys)
-
-        _uiState.value = _uiState.value.copy(
-            videos = allVideos,
-            profiles = allProfiles,
-            isLoading = false,
-            hasMore = allVideos.size >= 50,
-        )
+            // Step 4: Load profiles (now fast with memory cache + batch fetch)
+            val pubkeys = allVideos.map { it.pubkey }.distinct()
+            allProfiles = profileRepository.getProfiles(pubkeys)
+            _uiState.value = _uiState.value.copy(profiles = allProfiles)
+        } catch (e: Exception) {
+            // Keep showing cached if fresh fetch fails
+            if (allVideos.isEmpty()) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "Couldn't load videos — check your relay connection",
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
     }
 
     /**

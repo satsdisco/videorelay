@@ -55,12 +55,14 @@ class SettingsViewModel @Inject constructor(
                 authMethod = method,
             )
 
-            // Fetch profile in background if logged in
+            // Fetch profile if logged in — uses memory/DB cache, fast
             if (pubkey != null) {
                 try {
                     val profile = profileRepository.getProfile(pubkey)
                     _uiState.value = _uiState.value.copy(myProfile = profile)
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                    // Still show pubkey even if profile fetch fails
+                }
             }
         }
     }

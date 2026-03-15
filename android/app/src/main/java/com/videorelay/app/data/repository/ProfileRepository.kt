@@ -1,9 +1,12 @@
 package com.videorelay.app.data.repository
 
+import android.util.Log
 import com.videorelay.app.data.db.ProfileDao
 import com.videorelay.app.data.db.ProfileEntity
 import com.videorelay.app.data.nostr.*
 import com.videorelay.app.domain.model.Profile
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -17,31 +20,35 @@ class ProfileRepository @Inject constructor(
     private val relayRepository: RelayRepository,
 ) {
     companion object {
+        private const val TAG = "ProfileRepository"
         private const val CACHE_MAX_AGE_MS = 60 * 60 * 1000L // 1 hour
+
+        // Fast relays for profile fetches — aggregators with the best coverage
+        private val PROFILE_RELAYS = listOf(
+            "wss://relay.nostr.band",
+            "wss://relay.primal.net",
+            "wss://purplepag.es",
+        )
     }
 
+    // In-memory profile cache — avoids repeated DataStore + relay queries
+    private val memoryCache = mutableMapOf<String, Profile>()
+
     suspend fun getProfile(pubkey: String): Profile? {
-        // Check cache first
+        // 1. Memory cache (instant)
+        memoryCache[pubkey]?.let { return it }
+
+        // 2. DB cache
         profileDao.getByPubkey(pubkey)?.let { cached ->
             if (System.currentTimeMillis() - cached.fetchedAt < CACHE_MAX_AGE_MS) {
-                return cached.toDomain()
+                val profile = cached.toDomain()
+                memoryCache[pubkey] = profile
+                return profile
             }
         }
 
-        // Fetch from relays
-        val relays = relayRepository.getActiveRelays()
-        val filter = NostrFilter(
-            kinds = listOf(NostrConstants.PROFILE_KIND),
-            authors = listOf(pubkey),
-            limit = 1,
-        )
-
-        val events = relayPool.query(relays, filter)
-        val event = events.maxByOrNull { it.created_at } ?: return null
-
-        val profile = parseProfileEvent(event) ?: return null
-        profileDao.insertAll(listOf(profile.toEntity()))
-        return profile
+        // 3. Relay fetch — use fast profile relays only
+        return fetchFromRelays(listOf(pubkey)).values.firstOrNull()
     }
 
     suspend fun getProfiles(pubkeys: List<String>): Map<String, Profile> {
@@ -50,50 +57,72 @@ class ProfileRepository @Inject constructor(
         val result = mutableMapOf<String, Profile>()
         val toFetch = mutableListOf<String>()
 
-        // Check cache
-        val cached = profileDao.getByPubkeys(pubkeys)
-        for (entity in cached) {
-            if (System.currentTimeMillis() - entity.fetchedAt < CACHE_MAX_AGE_MS) {
-                result[entity.pubkey] = entity.toDomain()
-            } else {
-                toFetch.add(entity.pubkey)
-            }
+        // Memory cache first (instant)
+        for (pk in pubkeys) {
+            memoryCache[pk]?.let { result[pk] = it } ?: toFetch.add(pk)
         }
-        toFetch.addAll(pubkeys.filter { it !in result && it !in toFetch })
-
         if (toFetch.isEmpty()) return result
 
-        // Fetch missing from relays
-        val relays = relayRepository.getActiveRelays()
-        val filter = NostrFilter(
-            kinds = listOf(NostrConstants.PROFILE_KIND),
-            authors = toFetch,
-            limit = toFetch.size,
-        )
-
-        val events = relayPool.query(relays, filter)
-        val profileEntities = mutableListOf<ProfileEntity>()
-
-        // Group by pubkey, take most recent
-        events.groupBy { it.pubkey }
-            .mapValues { (_, evts) -> evts.maxByOrNull { it.created_at }!! }
-            .forEach { (_, event) ->
-                parseProfileEvent(event)?.let { profile ->
-                    result[profile.pubkey] = profile
-                    profileEntities.add(profile.toEntity())
-                }
+        // DB cache
+        val dbCached = profileDao.getByPubkeys(toFetch)
+        val stillNeeded = mutableListOf<String>()
+        for (entity in dbCached) {
+            if (System.currentTimeMillis() - entity.fetchedAt < CACHE_MAX_AGE_MS) {
+                val profile = entity.toDomain()
+                result[entity.pubkey] = profile
+                memoryCache[entity.pubkey] = profile
+            } else {
+                stillNeeded.add(entity.pubkey)
             }
-
-        if (profileEntities.isNotEmpty()) {
-            profileDao.insertAll(profileEntities)
         }
+        stillNeeded.addAll(toFetch.filter { it !in result })
 
+        if (stillNeeded.isEmpty()) return result
+
+        // Relay fetch — batch all needed profiles in ONE query
+        val fetched = fetchFromRelays(stillNeeded)
+        result.putAll(fetched)
         return result
     }
 
-    private fun parseProfileEvent(event: NostrEvent): Profile? {
+    private suspend fun fetchFromRelays(pubkeys: List<String>): Map<String, Profile> {
+        if (pubkeys.isEmpty()) return emptyMap()
+
         return try {
-            val json = Json.parseToJsonElement(event.content).jsonObject
+            val filter = NostrFilter(
+                kinds = listOf(NostrConstants.PROFILE_KIND),
+                authors = pubkeys,
+                limit = pubkeys.size.coerceAtLeast(50),
+            )
+
+            // Use profile-specific fast relays (not all 10 relays)
+            val events = relayPool.query(PROFILE_RELAYS, filter, timeoutMs = 5000)
+
+            val result = mutableMapOf<String, Profile>()
+            val entities = mutableListOf<ProfileEntity>()
+
+            events.groupBy { it.pubkey }
+                .mapValues { (_, evts) -> evts.maxByOrNull { it.created_at }!! }
+                .forEach { (pk, event) ->
+                    parseProfileEvent(event)?.let { profile ->
+                        result[pk] = profile
+                        memoryCache[pk] = profile
+                        entities.add(profile.toEntity())
+                    }
+                }
+
+            if (entities.isNotEmpty()) profileDao.insertAll(entities)
+            result
+        } catch (e: Exception) {
+            Log.w(TAG, "Profile fetch failed: ${e.message}")
+            emptyMap()
+        }
+    }
+
+    fun parseProfileEvent(event: NostrEvent): Profile? {
+        return try {
+            val json = Json { ignoreUnknownKeys = true }
+                .parseToJsonElement(event.content).jsonObject
             Profile(
                 pubkey = event.pubkey,
                 name = json["name"]?.jsonPrimitive?.content ?: "",
